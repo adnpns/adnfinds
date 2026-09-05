@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finds — Tri rapide</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card-bg: #ffffff;
+    --text: #1d1d1f;
+    --text-muted: #6e6e73;
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --success: #34c759;
+    --border: #e5e5ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 80px;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    background: rgba(245,245,247,0.9);
+    backdrop-filter: blur(10px);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .status-bar button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .filter-tabs button {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .filter-tabs button.active {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search-row input[type="search"] {
+    flex: 1;
+    min-width: 160px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    background: white;
+  }
+  .search-row select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    background: white;
+    color: var(--text);
+  }
+  .search-row select.filled {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .dossiers-manage {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .dossiers-manage button {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .new-dossier-form {
+    display: none;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .new-dossier-form.show { display: flex; }
+  .new-dossier-form input, .new-dossier-form select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .new-dossier-form button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  #setup-screen {
+    max-width: 480px;
+    margin: 60px auto;
+    padding: 24px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  #setup-screen h2 { margin-top: 0; font-size: 18px; }
+  #setup-screen label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 16px 0 6px;
+  }
+  #setup-screen input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  #setup-screen p.hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  #setup-screen button.primary {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #setup-screen button.primary:hover { background: var(--accent-hover); }
+
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .card.tagged {
+    opacity: 0;
+    transform: scale(0.9);
+    pointer-events: none;
+  }
+  .card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    background: #eee;
+    display: block;
+  }
+  .card .no-image {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .card-body { padding: 10px 12px 12px; }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .vinted-link {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+    margin: -4px 0 10px;
+  }
+  .vinted-link:hover { text-decoration: underline; }
+  .field-group {
+    margin-bottom: 10px;
+  }
+  .field-group-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .select-row {
+    display: flex;
+    gap: 6px;
+  }
+  .select-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+  }
+  .select-row select.filled {
+    border-color: var(--success);
+    background: #f0fbf2;
+  }
+  .dossier-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .dossier-btn {
+    border: none;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: white;
+    white-space: nowrap;
+  }
+  .dossier-btn:active { transform: scale(0.95); }
+  .dossier-btn.tagged-active {
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.25) inset;
+  }
+  .dossier-btn.client { background: #5856d6; }
+  .dossier-btn.public { background: #34c759; }
+  .dossier-btn.collection { background: #ff9500; }
+  .dossier-btn.autre { background: #8e8e93; }
+
+  .delete-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px;
+    background: none;
+    border: 1px solid #ff3b30;
+    color: #ff3b30;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .delete-btn:active { background: #fff0ef; }
+
+  #loading, #empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1d1d1f;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <h2>Configuration Google Sheets</h2>
+  <p class="hint">
+    Cette information reste uniquement dans ton navigateur (stockée localement sur cet appareil).
+  </p>
+  <label for="input-api-url">URL de l'API (Apps Script)</label>
+  <input id="input-api-url" type="text" placeholder="https://script.google.com/macros/s/AKfycb.../exec" value="https://script.google.com/macros/s/AKfycbypp-fgmCsLZAovVvFrhbDCRDBrqie6_o3Fm7MAFTmOVd9dGr7ic7jb_fk1A1K_NoXlOw/exec">
+  <p class="hint">L'URL /exec obtenue après déploiement du script Apps Script sur le Google Sheet "Finds".</p>
+
+  <button class="primary" id="btn-connect">Se connecter</button>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>🗂️ Tri rapide</h1>
+    <div class="status-bar">
+      <span id="status-text">Chargement…</span>
+      <button id="btn-refresh">↻ Rafraîchir</button>
+      <button id="btn-logout">Déconnexion</button>
+    </div>
+    <div class="filter-tabs">
+      <button data-filter="no-dossier">Sans dossier</button>
+      <button data-filter="no-categorie">Sans catégorie</button>
+      <button class="active" data-filter="all">Tout</button>
+    </div>
+    <div class="search-row">
+      <input type="search" id="input-search" placeholder="🔍 Chercher par titre ou marque…">
+      <select id="filter-category"><option value="">Catégorie : toutes</option></select>
+      <select id="filter-subcategory" disabled><option value="">Sous-catégorie</option></select>
+      <select id="filter-dossier"><option value="">Dossier : tous</option></select>
+    </div>
+    <div class="dossiers-manage">
+      <button id="btn-toggle-new-dossier">+ Nouveau dossier</button>
+      <div class="new-dossier-form" id="new-dossier-form">
+        <input type="text" id="input-new-dossier-name" placeholder="Nom du dossier (ex: Mehdi)">
+        <select id="input-new-dossier-type">
+          <option value="Client">Client</option>
+          <option value="Public">Public</option>
+          <option value="Collection">Collection</option>
+          <option value="Autre">Autre</option>
+        </select>
+        <button id="btn-create-dossier">Créer</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div id="loading">
+      <div class="spinner"></div>
+      Chargement des pièces et des dossiers…
+    </div>
+    <div id="empty" class="hidden">
+      🎉 Tout est trié !
+    </div>
+    <div id="grid" class="grid hidden"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LS_KEY = 'finds_tri_config';
+
+const CATEGORIE_MAP = {
+  'Jackets': {
+    'Blazers': [], 'Bombers': [], 'Denim Jackets': [], 'Leather jacket': [],
+    'Overcoats': [], 'Puffers': [], 'Vests': []
+  },
+  'Tops': {
+    'Tees': ['Graphic tee', 'Plain tee'],
+    'Shirts': ['Casual shirt', 'Dress shirt', 'Flannel'],
+    'Jerseys': []
+  },
+  'Sweaters': {
+    'Knits': [], 'Crenecks': [], 'Hoodies': [], 'Zip Hoodies': []
+  },
+  'Bottoms': {
+    '5 pockets pants': [], 'Denim pants': [], 'Dress pants': [],
+    'Shorts': [], 'Work pants': [], 'Tracksuits': []
+  },
+  'Shoes': {
+    'Dress shoes': [], 'Boots': [], 'Sandals': [], 'Sneakers': []
+  },
+  'Accessories': {
+    'Bags': ['Backpack', 'Crossbody', 'Shoulder bag', 'Tote'],
+    'Hats': ['Beanie', 'Bucket hat', 'Cap'],
+    'Jewellery': ['Bracelet', 'Charm', 'Keychain', 'Necklace', 'Ring', 'Watch'],
+    'Belts': ['Chain belt', 'Leather belt', 'Western buckle'],
+    'Scarfs': [], 'Sunglasses': []
+  },
+  'Home': {
+    'Furniture': [], 'Décoration': []
+  },
+  'Sport': {
+    'Autre': []
+  },
+  'Other': {
+    'Autre': []
+  }
+};
+
+const CATEGORIES_PRINCIPALES = Object.keys(CATEGORIE_MAP).sort((a, b) => a.localeCompare(b));
+
+function sousCategoriesFor(principale) {
+  const map = CATEGORIE_MAP[principale] || {};
+  return Object.keys(map).sort((a, b) => a.localeCompare(b));
+}
+
+function sousSousCategoriesFor(principale, secondaire) {
+  const map = CATEGORIE_MAP[principale] || {};
+  const list = map[secondaire] || [];
+  return [...list].sort((a, b) => a.localeCompare(b));
+}
+
+function estCompletementCategorise(fields) {
+  if (!fields.Category || !fields.Subcategory) return false;
+  const optionsTertiaire = sousSousCategoriesFor(fields.Category, fields.Subcategory);
+  if (optionsTertiaire.length > 0 && !fields['Sub-Subcategory']) return false;
+  return true;
+}
+
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { return null; }
+}
+function saveConfig(cfg) {
+  localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+}
+function clearConfig() {
+  localStorage.removeItem(LS_KEY);
+}
+
+function parseDossiersField(value) {
+  return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+function stringifyDossiersField(idsArray) {
+  return idsArray.join(',');
+}
+
+let CONFIG = loadConfig();
+let dossiers = [];
+let allRecords = [];
+let records = [];
+let currentFilter = 'all';
+let searchQuery = '';
+let categoryFilter = '';
+let subcategoryFilter = '';
+let dossierFilter = '';
+
+const PAGE_SIZE = 60;
+let currentVisibleRecords = [];
+let renderedCount = 0;
+let scrollObserver = null;
+
+const setupScreen = document.getElementById('setup-screen');
+const appScreen = document.getElementById('app');
+const gridEl = document.getElementById('grid');
+const loadingEl = document.getElementById('loading');
+const emptyEl = document.getElementById('empty');
+const statusText = document.getElementById('status-text');
+const toastEl = document.getElementById('toast');
+const searchInput = document.getElementById('input-search');
+const categorySelect = document.getElementById('filter-category');
+const subcategorySelect = document.getElementById('filter-subcategory');
+const dossierSelect = document.getElementById('filter-dossier');
+
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), 2000);
+}
+
+async function apiGet(action, params = {}) {
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch(`${CONFIG.apiUrl}?${qs}`);
+  if (!res.ok) throw new Error(`Erreur API (${res.status})`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPost(action, body = {}) {
+  const res = await fetch(CONFIG.apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...body })
+  });
+  if (!res.ok) throw new Error(`Erreur API (${res.status})`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadDossiers() {
+  const data = await apiGet('listDossiers');
+  dossiers = data.records.map(r => ({ id: r.fields.id, rowIndex: r.rowIndex, fields: r.fields }));
+  dossiers.sort((a, b) => (a.fields.Name || '').localeCompare(b.fields.Name || ''));
+}
+
+async function loadAllRecords() {
+  const data = await apiGet('listPieces');
+  allRecords = data.records.map(r => ({
+    id: r.rowIndex,
+    fields: { ...r.fields, Folders: parseDossiersField(r.fields.Folders) }
+  }));
+  allRecords.sort((a, b) => String(b.fields.find_id || '').localeCompare(String(a.fields.find_id || '')));
+}
+
+function applyTabFilter() {
+  if (currentFilter === 'no-dossier') {
+    records = allRecords.filter(r => (r.fields.Folders || []).length === 0);
+  } else if (currentFilter === 'no-categorie') {
+    records = allRecords.filter(r => !estCompletementCategorise(r.fields));
+  } else {
+    records = allRecords;
+  }
+}
+
+function dossierColorClass(type) {
+  switch ((type || '').toLowerCase()) {
+    case 'client': return 'client';
+    case 'public': return 'public';
+    case 'collection': return 'collection';
+    default: return 'autre';
+  }
+}
+
+function optionsHtml(list, selected) {
+  return `<option value="">—</option>` + list.map(v =>
+    `<option value="${v}" ${v === selected ? 'selected' : ''}>${v}</option>`
+  ).join('');
+}
+
+function applyClientFilters(list) {
+  let out = list;
+  if (searchQuery.trim()) {
+    const q = searchQuery.trim().toLowerCase();
+    out = out.filter(r => {
+      const title = String(r.fields.Title || '').toLowerCase();
+      const brand = String(r.fields.Brand || '').toLowerCase();
+      return title.includes(q) || brand.includes(q);
+    });
+  }
+  if (categoryFilter) {
+    out = out.filter(r => r.fields.Category === categoryFilter);
+  }
+  if (subcategoryFilter) {
+    out = out.filter(r => r.fields.Subcategory === subcategoryFilter);
+  }
+  if (dossierFilter) {
+    out = out.filter(r => (r.fields.Folders || []).includes(dossierFilter));
+  }
+  return out;
+}
+
+function buildCard(record) {
+    const fields = record.fields;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.recordId = record.id;
+
+    const imgUrl = fields.Images_Link || null;
+    const currentDossierIds = (fields.Folders || []);
+
+    card.innerHTML = `
+      ${imgUrl
+        ? `<img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy">`
+        : `<div class="no-image">Pas d'image</div>`}
+      <div class="card-body">
+        <p class="card-title">${fields.Title || fields.find_id || 'Sans titre'}</p>
+        <p class="card-meta">${fields.find_id || ''}${fields.Brand ? ' · ' + fields.Brand : ''}</p>
+        ${fields.Vinted_Link
+          ? `<a href="${fields.Vinted_Link}" target="_blank" rel="noopener" class="vinted-link">🔗 Voir sur Vinted</a>`
+          : ''}
+
+        <div class="field-group">
+          <div class="field-group-label">Catégorie</div>
+          <div class="select-row">
+            <select class="cat-principale ${fields.Category ? 'filled' : ''}">
+              ${optionsHtml(CATEGORIES_PRINCIPALES, fields.Category)}
+            </select>
+            <select class="cat-secondaire ${fields.Subcategory ? 'filled' : ''}" ${!fields.Category ? 'disabled' : ''}>
+              ${optionsHtml(sousCategoriesFor(fields.Category), fields.Subcategory)}
+            </select>
+          </div>
+          <div class="select-row" style="margin-top:6px;">
+            <select class="cat-tertiaire ${fields['Sub-Subcategory'] ? 'filled' : ''}" ${sousSousCategoriesFor(fields.Category, fields.Subcategory).length === 0 ? 'disabled' : ''}>
+              ${optionsHtml(sousSousCategoriesFor(fields.Category, fields.Subcategory), fields['Sub-Subcategory'])}
+            </select>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-group-label">Dossiers</div>
+          <div class="dossier-buttons"></div>
+        </div>
+
+        <button class="delete-btn">🗑️ Supprimer</button>
+      </div>
+    `;
+
+    const selPrincipale = card.querySelector('.cat-principale');
+    const selSecondaire = card.querySelector('.cat-secondaire');
+    const selTertiaire = card.querySelector('.cat-tertiaire');
+
+    selPrincipale.addEventListener('change', async () => {
+      const newPrincipale = selPrincipale.value;
+      selSecondaire.innerHTML = optionsHtml(sousCategoriesFor(newPrincipale), '');
+      selSecondaire.disabled = !newPrincipale;
+      selSecondaire.classList.remove('filled');
+      selTertiaire.innerHTML = optionsHtml([], '');
+      selTertiaire.disabled = true;
+      selTertiaire.classList.remove('filled');
+      await updateCategorie(record.id, 'Category', newPrincipale, selPrincipale);
+      await updateCategorie(record.id, 'Subcategory', '', selSecondaire);
+      await updateCategorie(record.id, 'Sub-Subcategory', '', selTertiaire);
+    });
+
+    selSecondaire.addEventListener('change', async () => {
+      const newSecondaire = selSecondaire.value;
+      const options = sousSousCategoriesFor(selPrincipale.value, newSecondaire);
+      selTertiaire.innerHTML = optionsHtml(options, '');
+      selTertiaire.disabled = options.length === 0;
+      selTertiaire.classList.remove('filled');
+      await updateCategorie(record.id, 'Subcategory', newSecondaire, selSecondaire);
+      await updateCategorie(record.id, 'Sub-Subcategory', '', selTertiaire);
+    });
+
+    selTertiaire.addEventListener('change', () => updateCategorie(record.id, 'Sub-Subcategory', selTertiaire.value, selTertiaire));
+
+    const btnContainer = card.querySelector('.dossier-buttons');
+    dossiers.forEach(d => {
+      const isActive = currentDossierIds.includes(d.id);
+      const btn = document.createElement('button');
+      btn.className = `dossier-btn ${dossierColorClass(d.fields.Type)}${isActive ? ' tagged-active' : ''}`;
+      btn.textContent = (isActive ? '✓ ' : '') + (d.fields.Name || 'Sans nom');
+      btn.addEventListener('click', () => toggleDossier(record.id, d.id, d.fields.Name, btn, card));
+      btnContainer.appendChild(btn);
+    });
+
+    const deleteBtn = card.querySelector('.delete-btn');
+    deleteBtn.addEventListener('click', () => {
+      const label = fields.Title || fields.find_id || 'cette pièce';
+      if (confirm(`Supprimer définitivement "${label}" ? Cette action est irréversible.`)) {
+        deleteRecord(record.id, card);
+      }
+    });
+
+  return card;
+}
+
+function renderGrid() {
+  currentVisibleRecords = applyClientFilters(records);
+  renderedCount = 0;
+
+  if (records.length === 0) {
+    gridEl.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    statusText.textContent = 'Rien à afficher';
+    return;
+  }
+  if (currentVisibleRecords.length === 0) {
+    gridEl.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    emptyEl.textContent = '🔍 Aucun résultat pour ces filtres.';
+    statusText.textContent = '0 pièce';
+    return;
+  }
+  emptyEl.textContent = '🎉 Tout est trié !';
+  emptyEl.classList.add('hidden');
+  gridEl.classList.remove('hidden');
+  gridEl.innerHTML = '';
+
+  renderNextPage();
+  statusText.textContent = `${currentVisibleRecords.length} pièce${currentVisibleRecords.length > 1 ? 's' : ''}`;
+}
+
+function renderNextPage() {
+  const slice = currentVisibleRecords.slice(renderedCount, renderedCount + PAGE_SIZE);
+  if (slice.length === 0) return;
+
+  const fragment = document.createDocumentFragment();
+  slice.forEach(record => fragment.appendChild(buildCard(record)));
+  gridEl.appendChild(fragment);
+  renderedCount += slice.length;
+
+  setupScrollSentinel();
+}
+
+function setupScrollSentinel() {
+  const existing = document.getElementById('scroll-sentinel');
+  if (existing) existing.remove();
+
+  if (renderedCount >= currentVisibleRecords.length) {
+    if (scrollObserver) scrollObserver.disconnect();
+    return;
+  }
+
+  const sentinel = document.createElement('div');
+  sentinel.id = 'scroll-sentinel';
+  sentinel.style.gridColumn = '1 / -1';
+  sentinel.style.height = '1px';
+  gridEl.appendChild(sentinel);
+
+  if (!scrollObserver) {
+    scrollObserver = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) renderNextPage();
+    }, { rootMargin: '600px' });
+  }
+  scrollObserver.observe(sentinel);
+}
+
+function removeCardFromGrid(cardEl) {
+  cardEl.classList.add('tagged');
+  const recordId = String(cardEl.dataset.recordId);
+  setTimeout(() => {
+    cardEl.remove();
+    const idx = currentVisibleRecords.findIndex(r => String(r.id) === recordId);
+    if (idx !== -1) {
+      currentVisibleRecords.splice(idx, 1);
+      if (idx < renderedCount) renderedCount--;
+    }
+    const remaining = gridEl.querySelectorAll('.card').length;
+    statusText.textContent = `${remaining} pièce${remaining > 1 ? 's' : ''}`;
+    if (remaining === 0) {
+      gridEl.classList.add('hidden');
+      emptyEl.textContent = records.length === 0 ? '🎉 Tout est trié !' : '🔍 Aucun résultat pour ces filtres.';
+      emptyEl.classList.remove('hidden');
+    } else {
+      setupScrollSentinel();
+    }
+  }, 300);
+}
+
+async function deleteRecord(recordId, cardEl) {
+  cardEl.style.pointerEvents = 'none';
+  cardEl.style.opacity = '0.4';
+  try {
+    await apiPost('deletePiece', { rowIndex: recordId });
+    showToast('🗑️ Pièce supprimée');
+    allRecords = allRecords.filter(r => r.id !== recordId);
+    records = records.filter(r => r.id !== recordId);
+    removeCardFromGrid(cardEl);
+  } catch (e) {
+    cardEl.style.pointerEvents = '';
+    cardEl.style.opacity = '';
+    showToast(`Erreur : ${e.message}`);
+  }
+}
+
+async function patchRecord(recordId, fields) {
+  return apiPost('updatePiece', { rowIndex: recordId, fields });
+}
+
+const FIELD_LABELS = {
+  Category: 'Catégorie',
+  Subcategory: 'Sous-catégorie',
+  'Sub-Subcategory': 'Sous-sous-catégorie'
+};
+
+async function updateCategorie(recordId, fieldName, value, selectEl) {
+  selectEl.disabled = true;
+  try {
+    await patchRecord(recordId, { [fieldName]: value || null });
+    selectEl.classList.toggle('filled', !!value);
+    if (value) showToast(`✓ ${FIELD_LABELS[fieldName] || fieldName} mise à jour`);
+    const rec = allRecords.find(r => r.id === recordId);
+    if (rec) rec.fields[fieldName] = value;
+    const recInView = records.find(r => r.id === recordId);
+    if (recInView) recInView.fields[fieldName] = value;
+    maybeRemoveIfFiltered(recordId);
+  } catch (e) {
+    showToast(`Erreur : ${e.message}`);
+  } finally {
+    selectEl.disabled = false;
+  }
+}
+
+async function toggleDossier(recordId, dossierId, dossierName, btnEl, cardEl) {
+  const rec = records.find(r => r.id === recordId);
+  if (!rec) return;
+  const current = rec.fields.Folders || [];
+  const isActive = current.includes(dossierId);
+  const next = isActive ? current.filter(id => id !== dossierId) : [...current, dossierId];
+
+  const allButtons = cardEl.querySelectorAll('.dossier-btn');
+  allButtons.forEach(b => b.disabled = true);
+
+  try {
+    await patchRecord(recordId, { 'Folders': stringifyDossiersField(next) });
+    rec.fields.Folders = next;
+    const recInAll = allRecords.find(r => r.id === recordId);
+    if (recInAll) recInAll.fields.Folders = next;
+    btnEl.classList.toggle('tagged-active', !isActive);
+    btnEl.textContent = (!isActive ? '✓ ' : '') + dossierName;
+    showToast(isActive ? `Retiré de "${dossierName}"` : `✓ Ajouté à "${dossierName}"`);
+    maybeRemoveIfFiltered(recordId, cardEl);
+  } catch (e) {
+    showToast(`Erreur : ${e.message}`);
+  } finally {
+    allButtons.forEach(b => b.disabled = false);
+  }
+}
+
+function maybeRemoveIfFiltered(recordId, cardElOverride) {
+  const rec = records.find(r => r.id === recordId);
+  if (!rec) return;
+  let shouldRemove = false;
+  if (currentFilter === 'no-dossier' && (rec.fields.Folders || []).length > 0) shouldRemove = true;
+  if (currentFilter === 'no-categorie' && estCompletementCategorise(rec.fields)) shouldRemove = true;
+
+  if (shouldRemove) {
+    records = records.filter(r => r.id !== recordId);
+    const cardEl = cardElOverride || document.querySelector(`.card[data-record-id="${recordId}"]`);
+    if (cardEl) removeCardFromGrid(cardEl);
+  }
+}
+
+function populateFilterSelects() {
+  const prevCategory = categorySelect.value;
+  categorySelect.innerHTML = '<option value="">Catégorie : toutes</option>' +
+    CATEGORIES_PRINCIPALES.map(c => `<option value="${c}" ${c === prevCategory ? 'selected' : ''}>${c}</option>`).join('');
+  categorySelect.classList.toggle('filled', !!categoryFilter);
+
+  const prevSubcategory = subcategorySelect.value;
+  const subOptions = categoryFilter ? sousCategoriesFor(categoryFilter) : [];
+  subcategorySelect.innerHTML = '<option value="">Sous-catégorie</option>' +
+    subOptions.map(sc => `<option value="${sc}" ${sc === prevSubcategory ? 'selected' : ''}>${sc}</option>`).join('');
+  subcategorySelect.disabled = !categoryFilter;
+  subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
+
+  const prevDossier = dossierSelect.value;
+  dossierSelect.innerHTML = '<option value="">Dossier : tous</option>' +
+    dossiers.map(d => `<option value="${d.id}" ${d.id === prevDossier ? 'selected' : ''}>${d.fields.Name || 'Sans nom'}</option>`).join('');
+  dossierSelect.classList.toggle('filled', !!dossierFilter);
+}
+
+async function createDossier(name, type) {
+  return apiPost('createDossier', { name, type });
+}
+
+async function refreshAll() {
+  loadingEl.classList.remove('hidden');
+  gridEl.classList.add('hidden');
+  emptyEl.classList.add('hidden');
+  statusText.textContent = 'Chargement…';
+  try {
+    await loadDossiers();
+    await loadAllRecords();
+    applyTabFilter();
+    populateFilterSelects();
+    loadingEl.classList.add('hidden');
+    renderGrid();
+  } catch (e) {
+    loadingEl.classList.add('hidden');
+    statusText.textContent = '';
+    showToast(`Erreur : ${e.message}`);
+    alert(`Erreur de chargement : ${e.message}\n\nVérifie ton token et les IDs dans la configuration.`);
+  }
+}
+
+function switchTab(filter) {
+  currentFilter = filter;
+  applyTabFilter();
+  renderGrid();
+}
+
+function startApp() {
+  setupScreen.classList.add('hidden');
+  appScreen.classList.remove('hidden');
+  refreshAll();
+}
+
+document.getElementById('btn-connect').addEventListener('click', () => {
+  const apiUrl = document.getElementById('input-api-url').value.trim();
+
+  if (!apiUrl) {
+    alert('Merci de renseigner l\'URL de l\'API.');
+    return;
+  }
+  CONFIG = { apiUrl };
+  saveConfig(CONFIG);
+  startApp();
+});
+
+document.getElementById('btn-refresh').addEventListener('click', refreshAll);
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  if (confirm('Déconnexion : la configuration sera supprimée de ce navigateur. Continuer ?')) {
+    clearConfig();
+    CONFIG = null;
+    appScreen.classList.add('hidden');
+    setupScreen.classList.remove('hidden');
+  }
+});
+
+document.querySelectorAll('.filter-tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    switchTab(btn.dataset.filter);
+  });
+});
+
+let searchDebounceTimer = null;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    searchQuery = searchInput.value;
+    renderGrid();
+  }, 150);
+});
+
+categorySelect.addEventListener('change', () => {
+  categoryFilter = categorySelect.value;
+  subcategoryFilter = '';
+  populateFilterSelects();
+  renderGrid();
+});
+
+subcategorySelect.addEventListener('change', () => {
+  subcategoryFilter = subcategorySelect.value;
+  subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
+  renderGrid();
+});
+
+dossierSelect.addEventListener('change', () => {
+  dossierFilter = dossierSelect.value;
+  dossierSelect.classList.toggle('filled', !!dossierFilter);
+  renderGrid();
+});
+
+const btnToggleNewDossier = document.getElementById('btn-toggle-new-dossier');
+const newDossierForm = document.getElementById('new-dossier-form');
+const inputNewDossierName = document.getElementById('input-new-dossier-name');
+const inputNewDossierType = document.getElementById('input-new-dossier-type');
+const btnCreateDossier = document.getElementById('btn-create-dossier');
+
+btnToggleNewDossier.addEventListener('click', () => {
+  newDossierForm.classList.toggle('show');
+  if (newDossierForm.classList.contains('show')) inputNewDossierName.focus();
+});
+
+btnCreateDossier.addEventListener('click', async () => {
+  const name = inputNewDossierName.value.trim();
+  const type = inputNewDossierType.value;
+  if (!name) {
+    alert('Merci de renseigner un nom pour le dossier.');
+    return;
+  }
+  btnCreateDossier.disabled = true;
+  btnCreateDossier.textContent = '…';
+  try {
+    await createDossier(name, type);
+    showToast(`✓ Dossier "${name}" créé`);
+    inputNewDossierName.value = '';
+    newDossierForm.classList.remove('show');
+    await loadDossiers();
+    populateFilterSelects();
+    renderGrid();
+  } catch (e) {
+    showToast(`Erreur : ${e.message}`);
+  } finally {
+    btnCreateDossier.disabled = false;
+    btnCreateDossier.textContent = 'Créer';
+  }
+});
+
+if (CONFIG && CONFIG.apiUrl) {
+  document.getElementById('input-api-url').value = CONFIG.apiUrl;
+  startApp();
+}
+</script>
+
+</body>
+</html>
