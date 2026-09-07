@@ -411,13 +411,33 @@ async function apiPost(action, body = {}) {
   return data;
 }
 
-async function loadRecords() {
-  const data = await apiGet('listPieces', { filter: 'dossier', dossierId: DOSSIER_ID });
-  allRecords = data.records.map(r => ({
+// Le script Google (Apps Script) met ~5s à répondre car il relit toute la feuille à
+// chaque appel, même filtré. Pour que ça reste agréable à l'usage malgré cette latence
+// serveur (qu'on ne peut pas réduire ici), on garde une copie locale (cache navigateur)
+// du dernier résultat : elle s'affiche instantanément à l'ouverture, pendant qu'un appel
+// frais tourne en fond et rafraîchit discrètement dès qu'il revient.
+const CACHE_KEY = 'ap_cache_' + DOSSIER_ID;
+
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) { return null; }
+}
+function saveCache(records) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(records)); } catch (e) { /* quota dépassé, tant pis */ }
+}
+
+function normalizeRecords(rawRecords) {
+  const out = rawRecords.map(r => ({
     id: r.rowIndex,
     fields: { ...r.fields, Folders: parseDossiersField(r.fields.Folders) }
   }));
-  allRecords.sort((a, b) => String(b.fields.find_id || '').localeCompare(String(a.fields.find_id || '')));
+  out.sort((a, b) => String(b.fields.find_id || '').localeCompare(String(a.fields.find_id || '')));
+  return out;
+}
+
+async function loadRecords() {
+  const data = await apiGet('listPieces', { filter: 'dossier', dossierId: DOSSIER_ID });
+  allRecords = normalizeRecords(data.records);
+  saveCache(allRecords);
 }
 
 function applyFilters() {
@@ -453,6 +473,7 @@ async function updateCategorie(recordId, fieldName, value, selectEl) {
     if (value) showToast(`✓ ${FIELD_LABELS[fieldName] || fieldName} mise à jour`);
     const rec = allRecords.find(r => r.id === recordId);
     if (rec) rec.fields[fieldName] = value;
+    saveCache(allRecords);
   } catch (e) {
     showToast(`Erreur : ${e.message}`);
   } finally {
@@ -547,6 +568,7 @@ async function deleteRecord(recordId, cardEl) {
     await apiPost('deletePiece', { rowIndex: recordId });
     showToast('🗑️ Pièce supprimée');
     allRecords = allRecords.filter(r => r.id !== recordId);
+    saveCache(allRecords); // évite que la pièce supprimée ne réapparaisse depuis le cache
     cardEl.classList.add('tagged');
     setTimeout(() => {
       cardEl.remove();
@@ -603,6 +625,8 @@ function populateFilterSelects() {
   subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
 }
 
+// Rechargement complet avec l'écran "Chargement…" (utilisé par le bouton Rafraîchir,
+// où l'utilisateur attend explicitement une réponse fraîche).
 async function refreshAll() {
   loadingEl.classList.remove('hidden');
   gridEl.classList.add('hidden');
@@ -617,6 +641,29 @@ async function refreshAll() {
     loadingEl.classList.add('hidden');
     statusText.textContent = '';
     alert(`Erreur de chargement : ${e.message}`);
+  }
+}
+
+// Démarrage de la page : si un cache existe, on l'affiche instantanément (aucune attente
+// visible), puis on relance un appel réseau en silence pour vérifier s'il y a du nouveau.
+// Sans cache (première visite sur cet appareil), on retombe sur le chargement classique.
+async function startApp() {
+  const cached = loadCache();
+  if (cached && cached.length > 0) {
+    allRecords = cached;
+    populateFilterSelects();
+    renderGrid();
+    statusText.textContent += ' (mise à jour en cours…)';
+    try {
+      await loadRecords();
+      populateFilterSelects();
+      renderGrid();
+    } catch (e) {
+      // Le cache reste affiché, on ne casse pas l'expérience pour un rafraîchissement raté.
+      showToast(`Mise à jour impossible : ${e.message}`);
+    }
+  } else {
+    await refreshAll();
   }
 }
 
@@ -655,7 +702,7 @@ subcategorySelect.addEventListener('change', () => {
 if (API_URL && DOSSIER_ID) {
   headerTitle.textContent = '🗂️ ' + DOSSIER_NAME;
   appScreen.classList.remove('hidden');
-  refreshAll();
+  startApp();
 } else {
   errorScreen.classList.remove('hidden');
 }
