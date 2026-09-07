@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -203,6 +202,27 @@
   .select-row select.filled {
     border-color: var(--success);
     background: #0d1f10;
+  }
+
+  .delete-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 7px;
+    background: none;
+    border: 1px solid #ff453a;
+    color: #ff453a;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .delete-btn:active { background: rgba(255,69,58,0.15); }
+
+  .card.tagged {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
   }
 
   #loading, #empty {
@@ -475,6 +495,8 @@ function buildCard(record) {
           </select>
         </div>
       </div>
+
+      <button class="delete-btn">🗑️ Supprimer</button>
     </div>
   `;
 
@@ -507,7 +529,40 @@ function buildCard(record) {
 
   selTertiaire.addEventListener('change', () => updateCategorie(record.id, 'Sub-Subcategory', selTertiaire.value, selTertiaire));
 
+  const deleteBtn = card.querySelector('.delete-btn');
+  deleteBtn.addEventListener('click', () => {
+    const label = fields.Title || fields.find_id || 'cette pièce';
+    if (confirm(`Supprimer définitivement "${label}" ? Cette action est irréversible.`)) {
+      deleteRecord(record.id, card);
+    }
+  });
+
   return card;
+}
+
+async function deleteRecord(recordId, cardEl) {
+  cardEl.style.pointerEvents = 'none';
+  cardEl.style.opacity = '0.4';
+  try {
+    await apiPost('deletePiece', { rowIndex: recordId });
+    showToast('🗑️ Pièce supprimée');
+    allRecords = allRecords.filter(r => r.id !== recordId);
+    cardEl.classList.add('tagged');
+    setTimeout(() => {
+      cardEl.remove();
+      const remaining = gridEl.querySelectorAll('.card').length;
+      statusText.textContent = `${remaining} pièce${remaining > 1 ? 's' : ''}`;
+      if (remaining === 0) {
+        gridEl.classList.add('hidden');
+        emptyEl.textContent = 'Aucune pièce dans ce dossier pour le moment.';
+        emptyEl.classList.remove('hidden');
+      }
+    }, 300);
+  } catch (e) {
+    cardEl.style.pointerEvents = '';
+    cardEl.style.opacity = '';
+    showToast(`Erreur : ${e.message}`);
+  }
 }
 
 function renderGrid() {
