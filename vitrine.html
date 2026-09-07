@@ -258,6 +258,20 @@ function saveConfig(cfg) {
 
 let CONFIG = loadConfig();
 
+// Si l'URL contient déjà apiUrl + dossierId (lien direct envoyé à quelqu'un), on saute
+// entièrement l'écran de configuration : on utilise ces paramètres, on les sauvegarde,
+// et on démarre directement l'app.
+const paramApiUrl = params.get('apiUrl');
+const paramDossierId = params.get('dossierId');
+if (paramApiUrl && paramDossierId) {
+  CONFIG = {
+    apiUrl: paramApiUrl,
+    dossierId: paramDossierId,
+    dossierName: params.get('dossierName') || ''
+  };
+  saveConfig(CONFIG);
+}
+
 const setupScreen = document.getElementById('setup-screen');
 const appScreen = document.getElementById('app');
 const gridEl = document.getElementById('grid');
