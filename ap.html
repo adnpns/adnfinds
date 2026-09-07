@@ -144,20 +144,38 @@
     font-size: 12px;
     color: var(--accent);
     text-decoration: none;
-    margin: -4px 0 4px;
+    margin: -4px 0 10px;
     font-weight: 600;
   }
   .vinted-link:hover { text-decoration: underline; }
   .field-group {
-    margin-top: 8px;
+    margin-bottom: 10px;
   }
   .field-group-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-muted);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
     font-weight: 600;
+  }
+  .select-row {
+    display: flex;
+    gap: 6px;
+  }
+  .select-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+  }
+  .select-row select.filled {
+    border-color: var(--success);
+    background: #f0fbf2;
   }
 
   #loading, #empty {
@@ -174,6 +192,27 @@
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1d1d1f;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 
   .hidden { display: none !important; }
 </style>
@@ -209,6 +248,8 @@
     <div id="grid" class="grid hidden"></div>
   </main>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 const CATEGORIE_MAP = {
@@ -253,6 +294,11 @@ function sousCategoriesFor(principale) {
   const map = CATEGORIE_MAP[principale] || {};
   return Object.keys(map).sort((a, b) => a.localeCompare(b));
 }
+function sousSousCategoriesFor(principale, secondaire) {
+  const map = CATEGORIE_MAP[principale] || {};
+  const list = map[secondaire] || [];
+  return [...list].sort((a, b) => a.localeCompare(b));
+}
 
 const params = new URLSearchParams(window.location.search);
 const API_URL = params.get('apiUrl');
@@ -266,6 +312,7 @@ const loadingEl = document.getElementById('loading');
 const emptyEl = document.getElementById('empty');
 const statusText = document.getElementById('status-text');
 const headerTitle = document.getElementById('header-title');
+const toastEl = document.getElementById('toast');
 const searchInput = document.getElementById('input-search');
 const categorySelect = document.getElementById('filter-category');
 const subcategorySelect = document.getElementById('filter-subcategory');
@@ -275,13 +322,37 @@ let searchQuery = '';
 let categoryFilter = '';
 let subcategoryFilter = '';
 
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), 2000);
+}
+
 function parseDossiersField(value) {
   return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function optionsHtml(list, selected) {
+  return `<option value="">—</option>` + list.map(v =>
+    `<option value="${v}" ${v === selected ? 'selected' : ''}>${v}</option>`
+  ).join('');
 }
 
 async function apiGet(action, extraParams = {}) {
   const qs = new URLSearchParams({ action, ...extraParams }).toString();
   const res = await fetch(`${API_URL}?${qs}`);
+  if (!res.ok) throw new Error(`Erreur API (${res.status})`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPost(action, body = {}) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...body })
+  });
   if (!res.ok) throw new Error(`Erreur API (${res.status})`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -312,13 +383,38 @@ function applyFilters() {
   return out;
 }
 
+async function patchRecord(recordId, fields) {
+  return apiPost('updatePiece', { rowIndex: recordId, fields });
+}
+
+const FIELD_LABELS = {
+  Category: 'Catégorie',
+  Subcategory: 'Sous-catégorie',
+  'Sub-Subcategory': 'Sous-sous-catégorie'
+};
+
+async function updateCategorie(recordId, fieldName, value, selectEl) {
+  selectEl.disabled = true;
+  try {
+    await patchRecord(recordId, { [fieldName]: value || null });
+    selectEl.classList.toggle('filled', !!value);
+    if (value) showToast(`✓ ${FIELD_LABELS[fieldName] || fieldName} mise à jour`);
+    const rec = allRecords.find(r => r.id === recordId);
+    if (rec) rec.fields[fieldName] = value;
+  } catch (e) {
+    showToast(`Erreur : ${e.message}`);
+  } finally {
+    selectEl.disabled = false;
+  }
+}
+
 function buildCard(record) {
   const fields = record.fields;
   const card = document.createElement('div');
   card.className = 'card';
+  card.dataset.recordId = record.id;
 
   const imgUrl = fields.Images_Link || null;
-  const catLabel = [fields.Category, fields.Subcategory].filter(Boolean).join(' · ');
 
   card.innerHTML = `
     ${imgUrl
@@ -330,9 +426,55 @@ function buildCard(record) {
       ${fields.Vinted_Link
         ? `<a href="${fields.Vinted_Link}" target="_blank" rel="noopener" class="vinted-link">🔗 Voir sur Vinted</a>`
         : ''}
-      ${catLabel ? `<div class="field-group"><div class="field-group-label">Catégorie</div>${catLabel}</div>` : ''}
+
+      <div class="field-group">
+        <div class="field-group-label">Catégorie</div>
+        <div class="select-row">
+          <select class="cat-principale ${fields.Category ? 'filled' : ''}">
+            ${optionsHtml(CATEGORIES_PRINCIPALES, fields.Category)}
+          </select>
+          <select class="cat-secondaire ${fields.Subcategory ? 'filled' : ''}" ${!fields.Category ? 'disabled' : ''}>
+            ${optionsHtml(sousCategoriesFor(fields.Category), fields.Subcategory)}
+          </select>
+        </div>
+        <div class="select-row" style="margin-top:6px;">
+          <select class="cat-tertiaire ${fields['Sub-Subcategory'] ? 'filled' : ''}" ${sousSousCategoriesFor(fields.Category, fields.Subcategory).length === 0 ? 'disabled' : ''}>
+            ${optionsHtml(sousSousCategoriesFor(fields.Category, fields.Subcategory), fields['Sub-Subcategory'])}
+          </select>
+        </div>
+      </div>
     </div>
   `;
+
+  const selPrincipale = card.querySelector('.cat-principale');
+  const selSecondaire = card.querySelector('.cat-secondaire');
+  const selTertiaire = card.querySelector('.cat-tertiaire');
+
+  selPrincipale.addEventListener('change', async () => {
+    const newPrincipale = selPrincipale.value;
+    selSecondaire.innerHTML = optionsHtml(sousCategoriesFor(newPrincipale), '');
+    selSecondaire.disabled = !newPrincipale;
+    selSecondaire.classList.remove('filled');
+    selTertiaire.innerHTML = optionsHtml([], '');
+    selTertiaire.disabled = true;
+    selTertiaire.classList.remove('filled');
+    await updateCategorie(record.id, 'Category', newPrincipale, selPrincipale);
+    await updateCategorie(record.id, 'Subcategory', '', selSecondaire);
+    await updateCategorie(record.id, 'Sub-Subcategory', '', selTertiaire);
+  });
+
+  selSecondaire.addEventListener('change', async () => {
+    const newSecondaire = selSecondaire.value;
+    const options = sousSousCategoriesFor(selPrincipale.value, newSecondaire);
+    selTertiaire.innerHTML = optionsHtml(options, '');
+    selTertiaire.disabled = options.length === 0;
+    selTertiaire.classList.remove('filled');
+    await updateCategorie(record.id, 'Subcategory', newSecondaire, selSecondaire);
+    await updateCategorie(record.id, 'Sub-Subcategory', '', selTertiaire);
+  });
+
+  selTertiaire.addEventListener('change', () => updateCategorie(record.id, 'Sub-Subcategory', selTertiaire.value, selTertiaire));
+
   return card;
 }
 
