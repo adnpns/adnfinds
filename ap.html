@@ -133,12 +133,6 @@
   .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
   .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
   .grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
-  @media (max-width: 900px) {
-    .grid.cols-4, .grid.cols-6 { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (max-width: 560px) {
-    .grid.cols-4, .grid.cols-6 { grid-template-columns: repeat(2, 1fr); }
-  }
 
   .card {
     background: var(--card-bg);
@@ -602,7 +596,6 @@ async function toggleFavorite(recordId, btnEl) {
     btnEl.textContent = next ? '★' : '☆';
     showToast(next ? '★ Ajouté aux coups de cœur' : 'Retiré des coups de cœur');
     if (favOnly && !next) {
-      // La pièce ne correspond plus au filtre actif : on la retire visuellement sans tout recharger.
       const cardEl = btnEl.closest('.card');
       if (cardEl) removeCardFromGrid(cardEl);
     }
@@ -777,7 +770,7 @@ async function deleteRecord(recordId, cardEl) {
     await apiPost('deletePiece', { rowIndex: recordId });
     showToast('🗑️ Pièce supprimée');
     allRecords = allRecords.filter(r => r.id !== recordId);
-    saveCache(allRecords); // évite que la pièce supprimée ne réapparaisse depuis le cache
+    saveCache(allRecords);
     cardEl.classList.add('tagged');
     setTimeout(() => {
       cardEl.remove();
@@ -797,9 +790,6 @@ async function deleteRecord(recordId, cardEl) {
   }
 }
 
-// Total conditionnel : uniquement les pièces "En attente d'achat" (un total sur tout le
-// dossier mélangerait pièces à voir / déjà achetées / reçues, ce qui n'a pas de sens en
-// tant que "budget à prévoir").
 function updateBudgetLine() {
   const enAttente = allRecords.filter(r => (r.fields.Status || 'À voir') === "En attente d'achat");
   if (enAttente.length === 0) {
@@ -852,7 +842,6 @@ function populateFilterSelects() {
   subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
 }
 
-// Génère un texte récap des coups de cœur en attente d'achat, prêt à coller dans WhatsApp.
 function buildRecapText() {
   const items = allRecords.filter(r => isFavorite(r.fields) && (r.fields.Status || 'À voir') === "En attente d'achat");
   if (items.length === 0) return null;
@@ -880,14 +869,10 @@ btnRecap.addEventListener('click', async () => {
     await navigator.clipboard.writeText(text);
     showToast('✓ Récap copié, colle-le où tu veux');
   } catch (e) {
-    // Fallback si l'API clipboard est indisponible (permissions navigateur) : on affiche
-    // le texte dans une alerte pour permettre une copie manuelle.
     alert(text);
   }
 });
 
-// Rechargement complet avec l'écran "Chargement…" (utilisé par le bouton Rafraîchir,
-// où l'utilisateur attend explicitement une réponse fraîche).
 async function refreshAll() {
   loadingEl.classList.remove('hidden');
   gridEl.classList.add('hidden');
@@ -906,9 +891,6 @@ async function refreshAll() {
   }
 }
 
-// Démarrage de la page : si un cache existe, on l'affiche instantanément (aucune attente
-// visible), puis on relance un appel réseau en silence pour vérifier s'il y a du nouveau.
-// Sans cache (première visite sur cet appareil), on retombe sur le chargement classique.
 async function startApp() {
   const cached = loadCache();
   if (cached && cached.length > 0) {
@@ -923,7 +905,6 @@ async function startApp() {
       updateBudgetLine();
       renderGrid();
     } catch (e) {
-      // Le cache reste affiché, on ne casse pas l'expérience pour un rafraîchissement raté.
       showToast(`Mise à jour impossible : ${e.message}`);
     }
   } else {
@@ -932,6 +913,29 @@ async function startApp() {
 }
 
 document.getElementById('btn-refresh').addEventListener('click', refreshAll);
+
+let lastRefreshAt = Date.now();
+async function silentRefresh() {
+  lastRefreshAt = Date.now();
+  try {
+    await loadRecords();
+    populateFilterSelects();
+    updateBudgetLine();
+    renderGrid();
+  } catch (e) {
+    // Silencieux : pas grave si ça échoue, l'utilisateur peut toujours forcer via "Rafraîchir".
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - lastRefreshAt > 20000) {
+    silentRefresh();
+  }
+});
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && Date.now() - lastRefreshAt > 20000) {
+    silentRefresh();
+  }
+});
 
 document.querySelectorAll('.cols-tabs button[data-cols]').forEach(btn => {
   btn.addEventListener('click', () => {
