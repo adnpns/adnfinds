@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12,6 +13,7 @@
     --text-muted: #9a9a9a;
     --accent: #0a84ff;
     --success: #34c759;
+    --gold: #ffd60a;
     --border: #2a2a2a;
   }
   * { box-sizing: border-box; }
@@ -53,10 +55,17 @@
     color: var(--accent);
     cursor: pointer;
   }
+  .budget-line {
+    font-size: 12px;
+    color: var(--gold);
+    margin-top: 6px;
+    font-weight: 600;
+  }
   .cols-tabs {
     display: flex;
     gap: 6px;
     margin-top: 10px;
+    flex-wrap: wrap;
   }
   .cols-tabs button {
     background: rgba(255,255,255,0.08);
@@ -71,6 +80,10 @@
     background: white;
     color: #000;
     font-weight: 600;
+  }
+  .cols-tabs button.fav-toggle.active {
+    background: var(--gold);
+    color: #000;
   }
   .search-row {
     display: flex;
@@ -131,7 +144,9 @@
   .card {
     background: var(--card-bg);
     overflow: hidden;
+    position: relative;
   }
+  .card-media { position: relative; }
   .card img {
     width: 100%;
     aspect-ratio: 1;
@@ -148,6 +163,27 @@
     justify-content: center;
     color: var(--text-muted);
     font-size: 11px;
+  }
+  .fav-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.55);
+    color: rgba(255,255,255,0.6);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .fav-btn.active {
+    color: var(--gold);
+    background: rgba(0,0,0,0.7);
   }
   .card-body { padding: 8px 9px 10px; }
   .card-title {
@@ -203,6 +239,36 @@
     border-color: var(--success);
     background: #0d1f10;
   }
+  .field-row {
+    display: flex;
+    gap: 4px;
+  }
+  .field-row input, .field-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #1a1a1a;
+    color: var(--text);
+  }
+  textarea.comment-input {
+    width: 100%;
+    font-size: 11px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #1a1a1a;
+    color: var(--text);
+    resize: vertical;
+    min-height: 32px;
+    font-family: inherit;
+  }
+  .status-select.status-a-voir { border-color: var(--border); }
+  .status-select.status-en-attente { border-color: #ff9f0a; background: #241a06; }
+  .status-select.status-achete { border-color: var(--accent); background: #06172b; }
+  .status-select.status-recu { border-color: var(--success); background: #0d1f10; }
 
   .delete-btn {
     display: block;
@@ -255,6 +321,9 @@
     pointer-events: none;
     z-index: 100;
     white-space: nowrap;
+    max-width: 90vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .toast.show {
     opacity: 1;
@@ -277,16 +346,26 @@
     <div class="status-bar">
       <span id="status-text">Chargement…</span>
       <button id="btn-refresh">↻ Rafraîchir</button>
+      <button id="btn-recap">📋 Copier le récap</button>
     </div>
+    <div class="budget-line hidden" id="budget-line"></div>
     <div class="cols-tabs">
       <button data-cols="2">2 colonnes</button>
       <button data-cols="4" class="active">4 colonnes</button>
       <button data-cols="6">6 colonnes</button>
+      <button id="btn-fav-filter" class="fav-toggle">★ Coups de cœur</button>
     </div>
     <div class="search-row">
       <input type="search" id="input-search" placeholder="🔍 Chercher par titre ou marque…">
       <select id="filter-category"><option value="">Catégorie : toutes</option></select>
       <select id="filter-subcategory" disabled><option value="">Sous-catégorie</option></select>
+      <select id="filter-status">
+        <option value="">Statut : tous</option>
+        <option value="À voir">À voir</option>
+        <option value="En attente d'achat">En attente d'achat</option>
+        <option value="Acheté">Acheté</option>
+        <option value="Reçu">Reçu</option>
+      </select>
     </div>
   </header>
   <main>
@@ -352,6 +431,16 @@ function sousSousCategoriesFor(principale, secondaire) {
   return [...list].sort((a, b) => a.localeCompare(b));
 }
 
+const STATUS_OPTIONS = ["À voir", "En attente d'achat", "Acheté", "Reçu"];
+function statusClass(status) {
+  switch (status) {
+    case "En attente d'achat": return 'status-en-attente';
+    case 'Acheté': return 'status-achete';
+    case 'Reçu': return 'status-recu';
+    default: return 'status-a-voir';
+  }
+}
+
 const params = new URLSearchParams(window.location.search);
 const API_URL = params.get('apiUrl');
 const DOSSIER_ID = params.get('dossierId');
@@ -368,11 +457,17 @@ const toastEl = document.getElementById('toast');
 const searchInput = document.getElementById('input-search');
 const categorySelect = document.getElementById('filter-category');
 const subcategorySelect = document.getElementById('filter-subcategory');
+const statusFilterSelect = document.getElementById('filter-status');
+const btnFavFilter = document.getElementById('btn-fav-filter');
+const budgetLine = document.getElementById('budget-line');
+const btnRecap = document.getElementById('btn-recap');
 
 let allRecords = [];
 let searchQuery = '';
 let categoryFilter = '';
 let subcategoryFilter = '';
+let statusFilter = '';
+let favOnly = false;
 
 function showToast(msg) {
   toastEl.textContent = msg;
@@ -388,6 +483,11 @@ function optionsHtml(list, selected) {
   return `<option value="">—</option>` + list.map(v =>
     `<option value="${v}" ${v === selected ? 'selected' : ''}>${v}</option>`
   ).join('');
+}
+
+function isFavorite(fields) {
+  const v = String(fields.Favorite || '').trim().toLowerCase();
+  return v === 'true' || v === '1' || v === 'oui' || v === 'yes';
 }
 
 async function apiGet(action, extraParams = {}) {
@@ -442,6 +542,7 @@ async function loadRecords() {
 
 function applyFilters() {
   let out = allRecords;
+  if (favOnly) out = out.filter(r => isFavorite(r.fields));
   if (searchQuery.trim()) {
     const q = searchQuery.trim().toLowerCase();
     out = out.filter(r => {
@@ -452,6 +553,7 @@ function applyFilters() {
   }
   if (categoryFilter) out = out.filter(r => r.fields.Category === categoryFilter);
   if (subcategoryFilter) out = out.filter(r => r.fields.Subcategory === subcategoryFilter);
+  if (statusFilter) out = out.filter(r => (r.fields.Status || 'À voir') === statusFilter);
   return out;
 }
 
@@ -462,23 +564,69 @@ async function patchRecord(recordId, fields) {
 const FIELD_LABELS = {
   Category: 'Catégorie',
   Subcategory: 'Sous-catégorie',
-  'Sub-Subcategory': 'Sous-sous-catégorie'
+  'Sub-Subcategory': 'Sous-sous-catégorie',
+  Price: 'Prix',
+  Size: 'Taille',
+  Status: 'Statut',
+  Comment: 'Commentaire'
 };
 
-async function updateCategorie(recordId, fieldName, value, selectEl) {
-  selectEl.disabled = true;
+async function updateField(recordId, fieldName, value, el, opts = {}) {
+  if (el) el.disabled = true;
   try {
     await patchRecord(recordId, { [fieldName]: value || null });
-    selectEl.classList.toggle('filled', !!value);
-    if (value) showToast(`✓ ${FIELD_LABELS[fieldName] || fieldName} mise à jour`);
+    if (el && el.classList) el.classList.toggle('filled', !!value);
+    if (value && !opts.silent) showToast(`✓ ${FIELD_LABELS[fieldName] || fieldName} mise à jour`);
     const rec = allRecords.find(r => r.id === recordId);
     if (rec) rec.fields[fieldName] = value;
     saveCache(allRecords);
   } catch (e) {
     showToast(`Erreur : ${e.message}`);
   } finally {
-    selectEl.disabled = false;
+    if (el) el.disabled = false;
   }
+}
+
+// Alias conservé pour compat avec le nom historique utilisé dans les handlers catégorie.
+const updateCategorie = updateField;
+
+async function toggleFavorite(recordId, btnEl) {
+  const rec = allRecords.find(r => r.id === recordId);
+  if (!rec) return;
+  const next = !isFavorite(rec.fields);
+  btnEl.disabled = true;
+  try {
+    await patchRecord(recordId, { Favorite: next ? 'true' : '' });
+    rec.fields.Favorite = next ? 'true' : '';
+    saveCache(allRecords);
+    btnEl.classList.toggle('active', next);
+    btnEl.textContent = next ? '★' : '☆';
+    showToast(next ? '★ Ajouté aux coups de cœur' : 'Retiré des coups de cœur');
+    if (favOnly && !next) {
+      // La pièce ne correspond plus au filtre actif : on la retire visuellement sans tout recharger.
+      const cardEl = btnEl.closest('.card');
+      if (cardEl) removeCardFromGrid(cardEl);
+    }
+  } catch (e) {
+    showToast(`Erreur : ${e.message}`);
+  } finally {
+    btnEl.disabled = false;
+  }
+}
+
+function removeCardFromGrid(cardEl) {
+  cardEl.classList.add('tagged');
+  setTimeout(() => {
+    cardEl.remove();
+    const remaining = gridEl.querySelectorAll('.card').length;
+    statusText.textContent = `${remaining} pièce${remaining > 1 ? 's' : ''}`;
+    if (remaining === 0) {
+      gridEl.classList.add('hidden');
+      emptyEl.textContent = '🔍 Aucun résultat pour ces filtres.';
+      emptyEl.classList.remove('hidden');
+    }
+    updateBudgetLine();
+  }, 300);
 }
 
 function buildCard(record) {
@@ -488,17 +636,37 @@ function buildCard(record) {
   card.dataset.recordId = record.id;
 
   const imgUrl = fields.Images_Link || null;
+  const fav = isFavorite(fields);
+  const status = fields.Status || 'À voir';
 
   card.innerHTML = `
-    ${imgUrl
-      ? `<img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy">`
-      : `<div class="no-image">Pas d'image</div>`}
+    <div class="card-media">
+      ${imgUrl
+        ? `<img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy">`
+        : `<div class="no-image">Pas d'image</div>`}
+      <button class="fav-btn ${fav ? 'active' : ''}" title="Coup de cœur">${fav ? '★' : '☆'}</button>
+    </div>
     <div class="card-body">
       <p class="card-title">${fields.Title || fields.find_id || 'Sans titre'}</p>
       <p class="card-meta">${fields.find_id || ''}${fields.Brand ? ' · ' + fields.Brand : ''}</p>
       ${fields.Vinted_Link
         ? `<a href="${fields.Vinted_Link}" target="_blank" rel="noopener" class="vinted-link">🔗 Voir sur Vinted</a>`
         : ''}
+
+      <div class="field-group">
+        <div class="field-group-label">Prix / Taille</div>
+        <div class="field-row">
+          <input type="number" class="price-input" placeholder="Prix €" value="${fields.Price != null && fields.Price !== '' ? fields.Price : ''}" step="0.5" min="0">
+          <input type="text" class="size-input" placeholder="Taille" value="${fields.Size || ''}">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group-label">Statut</div>
+        <select class="status-select ${statusClass(status)}">
+          ${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === status ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </div>
 
       <div class="field-group">
         <div class="field-group-label">Catégorie</div>
@@ -517,9 +685,51 @@ function buildCard(record) {
         </div>
       </div>
 
+      <div class="field-group">
+        <div class="field-group-label">Commentaire</div>
+        <textarea class="comment-input" placeholder="Note entre vous…">${fields.Comment || ''}</textarea>
+      </div>
+
       <button class="delete-btn">🗑️ Supprimer</button>
     </div>
   `;
+
+  const favBtn = card.querySelector('.fav-btn');
+  favBtn.addEventListener('click', () => toggleFavorite(record.id, favBtn));
+
+  const priceInput = card.querySelector('.price-input');
+  let priceDebounce = null;
+  priceInput.addEventListener('input', () => {
+    clearTimeout(priceDebounce);
+    priceDebounce = setTimeout(() => {
+      updateField(record.id, 'Price', priceInput.value, null, { silent: true });
+      updateBudgetLine();
+    }, 500);
+  });
+
+  const sizeInput = card.querySelector('.size-input');
+  let sizeDebounce = null;
+  sizeInput.addEventListener('input', () => {
+    clearTimeout(sizeDebounce);
+    sizeDebounce = setTimeout(() => updateField(record.id, 'Size', sizeInput.value, null, { silent: true }), 500);
+  });
+
+  const statusSelect = card.querySelector('.status-select');
+  statusSelect.addEventListener('change', async () => {
+    statusSelect.className = 'status-select ' + statusClass(statusSelect.value);
+    await updateField(record.id, 'Status', statusSelect.value, null, { silent: true });
+    updateBudgetLine();
+    if (statusFilter && statusSelect.value !== statusFilter) {
+      removeCardFromGrid(card);
+    }
+  });
+
+  const commentInput = card.querySelector('.comment-input');
+  let commentDebounce = null;
+  commentInput.addEventListener('input', () => {
+    clearTimeout(commentDebounce);
+    commentDebounce = setTimeout(() => updateField(record.id, 'Comment', commentInput.value, null, { silent: true }), 700);
+  });
 
   const selPrincipale = card.querySelector('.cat-principale');
   const selSecondaire = card.querySelector('.cat-secondaire');
@@ -579,12 +789,30 @@ async function deleteRecord(recordId, cardEl) {
         emptyEl.textContent = 'Aucune pièce dans ce dossier pour le moment.';
         emptyEl.classList.remove('hidden');
       }
+      updateBudgetLine();
     }, 300);
   } catch (e) {
     cardEl.style.pointerEvents = '';
     cardEl.style.opacity = '';
     showToast(`Erreur : ${e.message}`);
   }
+}
+
+// Total conditionnel : uniquement les pièces "En attente d'achat" (un total sur tout le
+// dossier mélangerait pièces à voir / déjà achetées / reçues, ce qui n'a pas de sens en
+// tant que "budget à prévoir").
+function updateBudgetLine() {
+  const enAttente = allRecords.filter(r => (r.fields.Status || 'À voir') === "En attente d'achat");
+  if (enAttente.length === 0) {
+    budgetLine.classList.add('hidden');
+    return;
+  }
+  const total = enAttente.reduce((sum, r) => {
+    const p = parseFloat(r.fields.Price);
+    return sum + (isNaN(p) ? 0 : p);
+  }, 0);
+  budgetLine.textContent = `💰 ${enAttente.length} pièce${enAttente.length > 1 ? 's' : ''} en attente d'achat · ${total.toFixed(2)}€ au total`;
+  budgetLine.classList.remove('hidden');
 }
 
 function renderGrid() {
@@ -625,6 +853,40 @@ function populateFilterSelects() {
   subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
 }
 
+// Génère un texte récap des coups de cœur en attente d'achat, prêt à coller dans WhatsApp.
+function buildRecapText() {
+  const items = allRecords.filter(r => isFavorite(r.fields) && (r.fields.Status || 'À voir') === "En attente d'achat");
+  if (items.length === 0) return null;
+  const lines = [`★ Coups de cœur en attente d'achat — ${DOSSIER_NAME}`, ''];
+  let total = 0;
+  items.forEach(r => {
+    const f = r.fields;
+    const price = parseFloat(f.Price);
+    if (!isNaN(price)) total += price;
+    const priceLabel = !isNaN(price) ? `${price}€` : 'prix ?';
+    lines.push(`• ${f.Title || f.find_id || 'Sans titre'} — ${priceLabel}${f.Size ? ' — taille ' + f.Size : ''}`);
+    if (f.Vinted_Link) lines.push(`  ${f.Vinted_Link}`);
+  });
+  lines.push('', `Total : ${total.toFixed(2)}€`);
+  return lines.join('\n');
+}
+
+btnRecap.addEventListener('click', async () => {
+  const text = buildRecapText();
+  if (!text) {
+    showToast('Aucun coup de cœur en attente d\'achat pour le moment.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('✓ Récap copié, colle-le où tu veux');
+  } catch (e) {
+    // Fallback si l'API clipboard est indisponible (permissions navigateur) : on affiche
+    // le texte dans une alerte pour permettre une copie manuelle.
+    alert(text);
+  }
+});
+
 // Rechargement complet avec l'écran "Chargement…" (utilisé par le bouton Rafraîchir,
 // où l'utilisateur attend explicitement une réponse fraîche).
 async function refreshAll() {
@@ -635,6 +897,7 @@ async function refreshAll() {
   try {
     await loadRecords();
     populateFilterSelects();
+    updateBudgetLine();
     loadingEl.classList.add('hidden');
     renderGrid();
   } catch (e) {
@@ -652,11 +915,13 @@ async function startApp() {
   if (cached && cached.length > 0) {
     allRecords = cached;
     populateFilterSelects();
+    updateBudgetLine();
     renderGrid();
     statusText.textContent += ' (mise à jour en cours…)';
     try {
       await loadRecords();
       populateFilterSelects();
+      updateBudgetLine();
       renderGrid();
     } catch (e) {
       // Le cache reste affiché, on ne casse pas l'expérience pour un rafraîchissement raté.
@@ -669,12 +934,18 @@ async function startApp() {
 
 document.getElementById('btn-refresh').addEventListener('click', refreshAll);
 
-document.querySelectorAll('.cols-tabs button').forEach(btn => {
+document.querySelectorAll('.cols-tabs button[data-cols]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.cols-tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.cols-tabs button[data-cols]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     gridEl.className = 'grid cols-' + btn.dataset.cols;
   });
+});
+
+btnFavFilter.addEventListener('click', () => {
+  favOnly = !favOnly;
+  btnFavFilter.classList.toggle('active', favOnly);
+  renderGrid();
 });
 
 let searchDebounceTimer = null;
@@ -696,6 +967,12 @@ categorySelect.addEventListener('change', () => {
 subcategorySelect.addEventListener('change', () => {
   subcategoryFilter = subcategorySelect.value;
   subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
+  renderGrid();
+});
+
+statusFilterSelect.addEventListener('change', () => {
+  statusFilter = statusFilterSelect.value;
+  statusFilterSelect.classList.toggle('filled', !!statusFilter);
   renderGrid();
 });
 
