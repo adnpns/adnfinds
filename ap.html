@@ -163,131 +163,119 @@
   }
   .fav-btns {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: 5px;
+    right: 5px;
     display: flex;
-    gap: 4px;
+    gap: 3px;
   }
   .fav-btn {
-    width: 30px;
-    height: 30px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     border: none;
-    background: rgba(0,0,0,0.55);
-    color: rgba(255,255,255,0.6);
-    font-size: 16px;
+    background: rgba(0,0,0,0.4);
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(3px);
+    opacity: 0.85;
   }
   .fav-btn.fav-adrien.active {
     color: #0a84ff;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.6);
+    opacity: 1;
   }
   .fav-btn.fav-pauline.active {
     color: #ff2d92;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.6);
+    opacity: 1;
   }
-  .card-body { padding: 8px 9px 10px; }
+  .del-btn {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.4);
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+    opacity: 0.7;
+  }
+  .del-btn:active { color: #ff453a; opacity: 1; }
+  .card-body { padding: 6px 7px 7px; }
   .card-title {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
-    margin: 0 0 3px;
-    line-height: 1.3;
+    margin: 0 0 2px;
+    line-height: 1.25;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .card-meta {
+    font-size: 9.5px;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+  }
+  .quick-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+  }
+  .price-size-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: #1a1a1a;
+    color: var(--text);
+  }
+  .price-size-input.filled { border-color: var(--success); }
+  .status-dot-select {
     font-size: 10px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-  }
-  .vinted-link {
-    display: inline-block;
-    font-size: 11px;
-    color: var(--accent);
-    text-decoration: none;
-    margin: -2px 0 8px;
-    font-weight: 600;
-  }
-  .vinted-link:hover { text-decoration: underline; }
-  .field-group {
-    margin-bottom: 6px;
-  }
-  .field-group-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-muted);
-    margin-bottom: 3px;
-    font-weight: 600;
-  }
-  .select-row {
-    display: flex;
-    gap: 4px;
-  }
-  .select-row select {
-    flex: 1;
-    min-width: 0;
-    font-size: 11px;
-    padding: 5px 6px;
-    border-radius: 6px;
+    padding: 3px 5px;
+    border-radius: 5px;
     border: 1px solid var(--border);
     background: #1a1a1a;
-    color: var(--text);
+    color: var(--text-muted);
+    max-width: 78px;
   }
-  .select-row select.filled {
+  .status-dot-select.status-a-voir { color: var(--text-muted); }
+  .status-dot-select.status-en-attente { color: #ff9f0a; border-color: #ff9f0a; }
+  .status-dot-select.status-achete { color: var(--accent); border-color: var(--accent); }
+  .status-dot-select.status-recu { color: var(--success); border-color: var(--success); }
+  .cat-row {
+    display: flex;
+    gap: 3px;
+  }
+  .cat-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 9.5px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: #1a1a1a;
+    color: var(--text-muted);
+  }
+  .cat-row select.filled {
+    color: var(--text);
     border-color: var(--success);
-    background: #0d1f10;
   }
-  .field-row {
-    display: flex;
-    gap: 4px;
-  }
-  .field-row input, .field-row select {
-    flex: 1;
-    min-width: 0;
-    font-size: 11px;
-    padding: 5px 6px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #1a1a1a;
-    color: var(--text);
-  }
-  textarea.comment-input {
-    width: 100%;
-    font-size: 11px;
-    padding: 5px 6px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #1a1a1a;
-    color: var(--text);
-    resize: vertical;
-    min-height: 32px;
-    font-family: inherit;
-  }
-  .status-select.status-a-voir { border-color: var(--border); }
-  .status-select.status-en-attente { border-color: #ff9f0a; background: #241a06; }
-  .status-select.status-achete { border-color: var(--accent); background: #06172b; }
-  .status-select.status-recu { border-color: var(--success); background: #0d1f10; }
-
-  .delete-btn {
-    display: block;
-    width: 100%;
-    margin-top: 8px;
-    padding: 7px;
-    background: none;
-    border: 1px solid #ff453a;
-    color: #ff453a;
-    border-radius: 8px;
-    font-size: 11px;
-    cursor: pointer;
-  }
-  .delete-btn:active { background: rgba(255,69,58,0.15); }
 
   .card.tagged {
     opacity: 0;
@@ -574,8 +562,7 @@ const FIELD_LABELS = {
   'Sub-Subcategory': 'Sous-sous-catégorie',
   Price: 'Prix',
   Size: 'Taille',
-  Status: 'Statut',
-  Comment: 'Commentaire'
+  Status: 'Statut'
 };
 
 async function updateField(recordId, fieldName, value, el, opts = {}) {
@@ -652,11 +639,16 @@ function buildCard(record) {
   const favP = isFavoritePauline(fields);
   const status = fields.Status || 'À voir';
 
+  const priceVal = fields.Price != null && fields.Price !== '' ? fields.Price : '';
+  const sizeVal = fields.Size || '';
+  const priceSizeVal = [priceVal ? `${priceVal}€` : '', sizeVal].filter(Boolean).join(' / ');
+
   card.innerHTML = `
     <div class="card-media">
       ${imgUrl
-        ? `<img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy">`
+        ? `<a href="${fields.Vinted_Link || '#'}" target="_blank" rel="noopener"><img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy"></a>`
         : `<div class="no-image">Pas d'image</div>`}
+      <button class="del-btn" title="Supprimer">🗑</button>
       <div class="fav-btns">
         <button class="fav-btn fav-adrien ${favA ? 'active' : ''}" title="Coup de cœur Adrien">${favA ? '★' : '☆'}</button>
         <button class="fav-btn fav-pauline ${favP ? 'active' : ''}" title="Coup de cœur Pauline">${favP ? '★' : '☆'}</button>
@@ -664,89 +656,62 @@ function buildCard(record) {
     </div>
     <div class="card-body">
       <p class="card-title">${fields.Title || fields.find_id || 'Sans titre'}</p>
-      <p class="card-meta">${fields.find_id || ''}${fields.Brand ? ' · ' + fields.Brand : ''}</p>
-      ${fields.Vinted_Link
-        ? `<a href="${fields.Vinted_Link}" target="_blank" rel="noopener" class="vinted-link">🔗 Voir sur Vinted</a>`
-        : ''}
+      ${fields.Brand ? `<p class="card-meta">${fields.Brand}</p>` : ''}
 
-      <div class="field-group">
-        <div class="field-group-label">Prix / Taille</div>
-        <div class="field-row">
-          <input type="number" class="price-input" placeholder="Prix €" value="${fields.Price != null && fields.Price !== '' ? fields.Price : ''}" step="0.5" min="0">
-          <input type="text" class="size-input" placeholder="Taille" value="${fields.Size || ''}">
-        </div>
+      <div class="quick-row">
+        <input type="text" class="price-size-input ${priceSizeVal ? 'filled' : ''}" placeholder="Prix / taille (ex: 8€ / S)" value="${priceSizeVal}">
       </div>
 
-      <div class="field-group">
-        <div class="field-group-label">Statut</div>
-        <select class="status-select ${statusClass(status)}">
+      <div class="quick-row">
+        <select class="status-dot-select ${statusClass(status)}">
           ${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === status ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
       </div>
 
-      <div class="field-group">
-        <div class="field-group-label">Catégorie</div>
-        <div class="select-row">
-          <select class="cat-principale ${fields.Category ? 'filled' : ''}">
-            ${optionsHtml(CATEGORIES_PRINCIPALES, fields.Category)}
-          </select>
-          <select class="cat-secondaire ${fields.Subcategory ? 'filled' : ''}" ${!fields.Category ? 'disabled' : ''}>
-            ${optionsHtml(sousCategoriesFor(fields.Category), fields.Subcategory)}
-          </select>
-        </div>
-        <div class="select-row" style="margin-top:4px;">
-          <select class="cat-tertiaire ${fields['Sub-Subcategory'] ? 'filled' : ''}" ${sousSousCategoriesFor(fields.Category, fields.Subcategory).length === 0 ? 'disabled' : ''}>
-            ${optionsHtml(sousSousCategoriesFor(fields.Category, fields.Subcategory), fields['Sub-Subcategory'])}
-          </select>
-        </div>
+      <div class="cat-row">
+        <select class="cat-principale ${fields.Category ? 'filled' : ''}">
+          ${optionsHtml(CATEGORIES_PRINCIPALES, fields.Category)}
+        </select>
+        <select class="cat-secondaire ${fields.Subcategory ? 'filled' : ''}" ${!fields.Category ? 'disabled' : ''}>
+          ${optionsHtml(sousCategoriesFor(fields.Category), fields.Subcategory)}
+        </select>
+        <select class="cat-tertiaire ${fields['Sub-Subcategory'] ? 'filled' : ''}" ${sousSousCategoriesFor(fields.Category, fields.Subcategory).length === 0 ? 'disabled' : ''}>
+          ${optionsHtml(sousSousCategoriesFor(fields.Category, fields.Subcategory), fields['Sub-Subcategory'])}
+        </select>
       </div>
-
-      <div class="field-group">
-        <div class="field-group-label">Commentaire</div>
-        <textarea class="comment-input" placeholder="Note entre vous…">${fields.Comment || ''}</textarea>
-      </div>
-
-      <button class="delete-btn">🗑️ Supprimer</button>
     </div>
   `;
 
   const favBtnAdrien = card.querySelector('.fav-adrien');
-  favBtnAdrien.addEventListener('click', () => toggleFavorite(record.id, favBtnAdrien, 'adrien'));
+  favBtnAdrien.addEventListener('click', (e) => { e.preventDefault(); toggleFavorite(record.id, favBtnAdrien, 'adrien'); });
   const favBtnPauline = card.querySelector('.fav-pauline');
-  favBtnPauline.addEventListener('click', () => toggleFavorite(record.id, favBtnPauline, 'pauline'));
+  favBtnPauline.addEventListener('click', (e) => { e.preventDefault(); toggleFavorite(record.id, favBtnPauline, 'pauline'); });
 
-  const priceInput = card.querySelector('.price-input');
-  let priceDebounce = null;
-  priceInput.addEventListener('input', () => {
-    clearTimeout(priceDebounce);
-    priceDebounce = setTimeout(() => {
-      updateField(record.id, 'Price', priceInput.value, null, { silent: true });
+  const priceSizeInput = card.querySelector('.price-size-input');
+  let priceSizeDebounce = null;
+  priceSizeInput.addEventListener('input', () => {
+    clearTimeout(priceSizeDebounce);
+    priceSizeDebounce = setTimeout(async () => {
+      const raw = priceSizeInput.value.trim();
+      const [priceRaw, sizeRaw] = raw.split('/').map(s => s.trim());
+      const priceMatch = (priceRaw || '').match(/[\d.,]+/);
+      const priceParsed = priceMatch ? priceMatch[0].replace(',', '.') : '';
+      const sizeParsed = sizeRaw || (priceMatch ? '' : priceRaw) || '';
+      priceSizeInput.classList.toggle('filled', !!raw);
+      await updateField(record.id, 'Price', priceParsed, null, { silent: true });
+      await updateField(record.id, 'Size', sizeParsed, null, { silent: true });
       updateBudgetLine();
-    }, 500);
+    }, 600);
   });
 
-  const sizeInput = card.querySelector('.size-input');
-  let sizeDebounce = null;
-  sizeInput.addEventListener('input', () => {
-    clearTimeout(sizeDebounce);
-    sizeDebounce = setTimeout(() => updateField(record.id, 'Size', sizeInput.value, null, { silent: true }), 500);
-  });
-
-  const statusSelect = card.querySelector('.status-select');
+  const statusSelect = card.querySelector('.status-dot-select');
   statusSelect.addEventListener('change', async () => {
-    statusSelect.className = 'status-select ' + statusClass(statusSelect.value);
+    statusSelect.className = 'status-dot-select ' + statusClass(statusSelect.value);
     await updateField(record.id, 'Status', statusSelect.value, null, { silent: true });
     updateBudgetLine();
     if (statusFilter && statusSelect.value !== statusFilter) {
       removeCardFromGrid(card);
     }
-  });
-
-  const commentInput = card.querySelector('.comment-input');
-  let commentDebounce = null;
-  commentInput.addEventListener('input', () => {
-    clearTimeout(commentDebounce);
-    commentDebounce = setTimeout(() => updateField(record.id, 'Comment', commentInput.value, null, { silent: true }), 700);
   });
 
   const selPrincipale = card.querySelector('.cat-principale');
@@ -778,8 +743,9 @@ function buildCard(record) {
 
   selTertiaire.addEventListener('change', () => updateCategorie(record.id, 'Sub-Subcategory', selTertiaire.value, selTertiaire));
 
-  const deleteBtn = card.querySelector('.delete-btn');
-  deleteBtn.addEventListener('click', () => {
+  const deleteBtn = card.querySelector('.del-btn');
+  deleteBtn.addEventListener('click', (e) => {
+    e.preventDefault();
     const label = fields.Title || fields.find_id || 'cette pièce';
     if (confirm(`Supprimer définitivement "${label}" ? Cette action est irréversible.`)) {
       deleteRecord(record.id, card);
