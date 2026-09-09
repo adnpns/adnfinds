@@ -80,9 +80,13 @@
     color: #000;
     font-weight: 600;
   }
-  .cols-tabs button.fav-toggle.active {
-    background: var(--gold);
-    color: #000;
+  .cols-tabs button.fav-toggle-adrien.active {
+    background: #0a84ff;
+    color: #fff;
+  }
+  .cols-tabs button.fav-toggle-pauline.active {
+    background: #ff2d92;
+    color: #fff;
   }
   .search-row {
     display: flex;
@@ -157,10 +161,14 @@
     color: var(--text-muted);
     font-size: 11px;
   }
-  .fav-btn {
+  .fav-btns {
     position: absolute;
     top: 6px;
     right: 6px;
+    display: flex;
+    gap: 4px;
+  }
+  .fav-btn {
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -174,8 +182,12 @@
     justify-content: center;
     backdrop-filter: blur(4px);
   }
-  .fav-btn.active {
-    color: var(--gold);
+  .fav-btn.fav-adrien.active {
+    color: #0a84ff;
+    background: rgba(0,0,0,0.7);
+  }
+  .fav-btn.fav-pauline.active {
+    color: #ff2d92;
     background: rgba(0,0,0,0.7);
   }
   .card-body { padding: 8px 9px 10px; }
@@ -346,7 +358,8 @@
       <button data-cols="2">2 colonnes</button>
       <button data-cols="4" class="active">4 colonnes</button>
       <button data-cols="6">6 colonnes</button>
-      <button id="btn-fav-filter" class="fav-toggle">★ Coups de cœur</button>
+      <button id="btn-fav-filter-adrien" class="fav-toggle-adrien">★ Adrien</button>
+      <button id="btn-fav-filter-pauline" class="fav-toggle-pauline">★ Pauline</button>
     </div>
     <div class="search-row">
       <input type="search" id="input-search" placeholder="🔍 Chercher par titre ou marque…">
@@ -451,7 +464,8 @@ const searchInput = document.getElementById('input-search');
 const categorySelect = document.getElementById('filter-category');
 const subcategorySelect = document.getElementById('filter-subcategory');
 const statusFilterSelect = document.getElementById('filter-status');
-const btnFavFilter = document.getElementById('btn-fav-filter');
+const btnFavFilterAdrien = document.getElementById('btn-fav-filter-adrien');
+const btnFavFilterPauline = document.getElementById('btn-fav-filter-pauline');
 const budgetLine = document.getElementById('budget-line');
 const btnRecap = document.getElementById('btn-recap');
 
@@ -460,7 +474,8 @@ let searchQuery = '';
 let categoryFilter = '';
 let subcategoryFilter = '';
 let statusFilter = '';
-let favOnly = false;
+let favFilterAdrien = false;
+let favFilterPauline = false;
 
 function showToast(msg) {
   toastEl.textContent = msg;
@@ -478,10 +493,13 @@ function optionsHtml(list, selected) {
   ).join('');
 }
 
-function isFavorite(fields) {
-  const v = String(fields.Favorite || '').trim().toLowerCase();
-  return v === 'true' || v === '1' || v === 'oui' || v === 'yes';
+function truthy(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'oui' || s === 'yes';
 }
+function isFavoriteAdrien(fields) { return truthy(fields['Favorite A']); }
+function isFavoritePauline(fields) { return truthy(fields['Favorite P']); }
+function isFavorite(fields) { return isFavoriteAdrien(fields) || isFavoritePauline(fields); }
 
 async function apiGet(action, extraParams = {}) {
   const qs = new URLSearchParams({ action, ...extraParams }).toString();
@@ -504,11 +522,6 @@ async function apiPost(action, body = {}) {
   return data;
 }
 
-// Le script Google (Apps Script) met ~5s à répondre car il relit toute la feuille à
-// chaque appel, même filtré. Pour que ça reste agréable à l'usage malgré cette latence
-// serveur (qu'on ne peut pas réduire ici), on garde une copie locale (cache navigateur)
-// du dernier résultat : elle s'affiche instantanément à l'ouverture, pendant qu'un appel
-// frais tourne en fond et rafraîchit discrètement dès qu'il revient.
 const CACHE_KEY = 'ap_cache_' + DOSSIER_ID;
 
 function loadCache() {
@@ -535,7 +548,8 @@ async function loadRecords() {
 
 function applyFilters() {
   let out = allRecords;
-  if (favOnly) out = out.filter(r => isFavorite(r.fields));
+  if (favFilterAdrien) out = out.filter(r => isFavoriteAdrien(r.fields));
+  if (favFilterPauline) out = out.filter(r => isFavoritePauline(r.fields));
   if (searchQuery.trim()) {
     const q = searchQuery.trim().toLowerCase();
     out = out.filter(r => {
@@ -580,22 +594,28 @@ async function updateField(recordId, fieldName, value, el, opts = {}) {
   }
 }
 
-// Alias conservé pour compat avec le nom historique utilisé dans les handlers catégorie.
 const updateCategorie = updateField;
 
-async function toggleFavorite(recordId, btnEl) {
+const FAV_CONFIG = {
+  adrien: { field: 'Favorite A', label: 'Adrien', check: isFavoriteAdrien },
+  pauline: { field: 'Favorite P', label: 'Pauline', check: isFavoritePauline }
+};
+
+async function toggleFavorite(recordId, btnEl, who) {
   const rec = allRecords.find(r => r.id === recordId);
   if (!rec) return;
-  const next = !isFavorite(rec.fields);
+  const cfg = FAV_CONFIG[who];
+  const next = !cfg.check(rec.fields);
   btnEl.disabled = true;
   try {
-    await patchRecord(recordId, { Favorite: next ? 'true' : '' });
-    rec.fields.Favorite = next ? 'true' : '';
+    await patchRecord(recordId, { [cfg.field]: next ? 'true' : '' });
+    rec.fields[cfg.field] = next ? 'true' : '';
     saveCache(allRecords);
     btnEl.classList.toggle('active', next);
     btnEl.textContent = next ? '★' : '☆';
-    showToast(next ? '★ Ajouté aux coups de cœur' : 'Retiré des coups de cœur');
-    if (favOnly && !next) {
+    showToast(next ? `★ Ajouté aux coups de cœur de ${cfg.label}` : `Retiré des coups de cœur de ${cfg.label}`);
+    const activeFilterVar = who === 'adrien' ? favFilterAdrien : favFilterPauline;
+    if (activeFilterVar && !next) {
       const cardEl = btnEl.closest('.card');
       if (cardEl) removeCardFromGrid(cardEl);
     }
@@ -628,7 +648,8 @@ function buildCard(record) {
   card.dataset.recordId = record.id;
 
   const imgUrl = fields.Images_Link || null;
-  const fav = isFavorite(fields);
+  const favA = isFavoriteAdrien(fields);
+  const favP = isFavoritePauline(fields);
   const status = fields.Status || 'À voir';
 
   card.innerHTML = `
@@ -636,7 +657,10 @@ function buildCard(record) {
       ${imgUrl
         ? `<img src="${imgUrl}" alt="${fields.Title || ''}" loading="lazy">`
         : `<div class="no-image">Pas d'image</div>`}
-      <button class="fav-btn ${fav ? 'active' : ''}" title="Coup de cœur">${fav ? '★' : '☆'}</button>
+      <div class="fav-btns">
+        <button class="fav-btn fav-adrien ${favA ? 'active' : ''}" title="Coup de cœur Adrien">${favA ? '★' : '☆'}</button>
+        <button class="fav-btn fav-pauline ${favP ? 'active' : ''}" title="Coup de cœur Pauline">${favP ? '★' : '☆'}</button>
+      </div>
     </div>
     <div class="card-body">
       <p class="card-title">${fields.Title || fields.find_id || 'Sans titre'}</p>
@@ -686,8 +710,10 @@ function buildCard(record) {
     </div>
   `;
 
-  const favBtn = card.querySelector('.fav-btn');
-  favBtn.addEventListener('click', () => toggleFavorite(record.id, favBtn));
+  const favBtnAdrien = card.querySelector('.fav-adrien');
+  favBtnAdrien.addEventListener('click', () => toggleFavorite(record.id, favBtnAdrien, 'adrien'));
+  const favBtnPauline = card.querySelector('.fav-pauline');
+  favBtnPauline.addEventListener('click', () => toggleFavorite(record.id, favBtnPauline, 'pauline'));
 
   const priceInput = card.querySelector('.price-input');
   let priceDebounce = null;
@@ -842,12 +868,12 @@ function populateFilterSelects() {
   subcategorySelect.classList.toggle('filled', !!subcategoryFilter);
 }
 
-function buildRecapText() {
-  const items = allRecords.filter(r => isFavorite(r.fields) && (r.fields.Status || 'À voir') === "En attente d'achat");
-  if (items.length === 0) return null;
-  const lines = [`★ Coups de cœur en attente d'achat — ${DOSSIER_NAME}`, ''];
+function buildRecapSection(label, checkFn, items) {
+  const filtered = items.filter(r => checkFn(r.fields));
+  if (filtered.length === 0) return null;
+  const lines = [`★ Coups de cœur ${label} en attente d'achat`, ''];
   let total = 0;
-  items.forEach(r => {
+  filtered.forEach(r => {
     const f = r.fields;
     const price = parseFloat(f.Price);
     if (!isNaN(price)) total += price;
@@ -855,8 +881,19 @@ function buildRecapText() {
     lines.push(`• ${f.Title || f.find_id || 'Sans titre'} — ${priceLabel}${f.Size ? ' — taille ' + f.Size : ''}`);
     if (f.Vinted_Link) lines.push(`  ${f.Vinted_Link}`);
   });
-  lines.push('', `Total : ${total.toFixed(2)}€`);
+  lines.push('', `Total ${label} : ${total.toFixed(2)}€`);
   return lines.join('\n');
+}
+
+function buildRecapText() {
+  const items = allRecords.filter(r => (r.fields.Status || 'À voir') === "En attente d'achat" && isFavorite(r.fields));
+  if (items.length === 0) return null;
+  const sections = [
+    buildRecapSection('Adrien', isFavoriteAdrien, items),
+    buildRecapSection('Pauline', isFavoritePauline, items)
+  ].filter(Boolean);
+  if (sections.length === 0) return null;
+  return [`— ${DOSSIER_NAME} —`, '', sections.join('\n\n')].join('\n');
 }
 
 btnRecap.addEventListener('click', async () => {
@@ -923,7 +960,7 @@ async function silentRefresh() {
     updateBudgetLine();
     renderGrid();
   } catch (e) {
-    // Silencieux : pas grave si ça échoue, l'utilisateur peut toujours forcer via "Rafraîchir".
+    // Silencieux
   }
 }
 document.addEventListener('visibilitychange', () => {
@@ -945,9 +982,14 @@ document.querySelectorAll('.cols-tabs button[data-cols]').forEach(btn => {
   });
 });
 
-btnFavFilter.addEventListener('click', () => {
-  favOnly = !favOnly;
-  btnFavFilter.classList.toggle('active', favOnly);
+btnFavFilterAdrien.addEventListener('click', () => {
+  favFilterAdrien = !favFilterAdrien;
+  btnFavFilterAdrien.classList.toggle('active', favFilterAdrien);
+  renderGrid();
+});
+btnFavFilterPauline.addEventListener('click', () => {
+  favFilterPauline = !favFilterPauline;
+  btnFavFilterPauline.classList.toggle('active', favFilterPauline);
   renderGrid();
 });
 
