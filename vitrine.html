@@ -2,365 +2,276 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Adn.Bazaar — Sélection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sélection · Adrien Pons</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap">
 <style>
-  :root {
-    --bg: #000000;
-    --text: #ffffff;
-    --text-muted: #9a9a9a;
-    --border: #2a2a2a;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
+/* Vitrine client : même direction artistique qu'adrienpons.com et Finds.
+   Lecture seule, une grille de pièces, une fiche agrandie au toucher. */
+:root {
+  --void: #0c0b0a;
+  --void-alt: #151312;
+  --ink: #e9e4d8;
+  --ink-soft: #8c8577;
+  --line: #2e2b26;
+  --line-strong: #4a453c;
+  --accent: #d97a4f;
+  --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gutter: clamp(16px, 5vw, 72px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--void); color: var(--ink); }
+body { font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+.mono { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.soft { color: var(--ink-soft); }
+.hidden { display: none !important; }
 
-  #setup-screen {
-    max-width: 480px;
-    margin: 60px auto;
-    padding: 24px;
-    background: #111;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    color: var(--text);
-  }
-  #setup-screen h2 { margin-top: 0; font-size: 18px; }
-  #setup-screen label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin: 16px 0 6px;
-  }
-  #setup-screen input, #setup-screen select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 14px;
-    background: #1a1a1a;
-    color: var(--text);
-  }
-  #setup-screen p.hint {
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.5;
-  }
-  #setup-screen button.primary {
-    margin-top: 20px;
-    width: 100%;
-    padding: 12px;
-    background: #fff;
-    color: #000;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+.wrap { max-width: 1480px; margin: 0 auto; padding: calc(56px + env(safe-area-inset-top, 0px)) var(--gutter) 80px; }
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 40px; }
+.head h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(36px, 6vw, 72px); line-height: 1.02; margin: 12px 0 0; text-wrap: balance; overflow-wrap: anywhere; }
+.head .count { text-align: right; }
+@media (max-width: 640px) { .head { grid-template-columns: 1fr; } .head .count { text-align: left; } }
 
-  .dev-bar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    background: #1d1d1f;
-    color: white;
-    padding: 8px 20px;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .dev-bar span { opacity: 0.6; }
-  .dev-bar button {
-    background: rgba(255,255,255,0.12);
-    border: none;
-    color: white;
-    padding: 5px 12px;
-    border-radius: 14px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .dev-bar button.active {
-    background: white;
-    color: #1d1d1f;
-    font-weight: 600;
-  }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin: -16px 0 32px; }
+.chip { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
+.chip:hover { color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
 
-  header.vitrine-header {
-    text-align: center;
-    padding: 48px 20px 28px;
-  }
-  header.vitrine-header .kicker {
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0 0 8px;
-  }
-  header.vitrine-header h1 {
-    font-size: 26px;
-    font-weight: 600;
-    margin: 0;
-  }
-  header.vitrine-header .count {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin: 8px 0 0;
-  }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 40px 20px; }
+@media (max-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 12px; } }
+.piece { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; display: grid; gap: 10px; min-width: 0; }
+.ph { aspect-ratio: 4 / 5; background: var(--void-alt); overflow: hidden; }
+.ph img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
+.piece:hover .ph img { transform: scale(1.03); }
+.cap { display: grid; gap: 2px; min-width: 0; }
+.cap .no { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; color: var(--ink-soft); }
+.cap .t { font-family: var(--serif); font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }
+.cap .b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  main { max-width: 1200px; margin: 0 auto; padding: 0 4px 60px; }
+.state { padding: 80px 0; text-align: center; font-family: var(--serif); font-size: 22px; color: var(--ink-soft); }
+.foot { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
-  .grid {
-    display: grid;
-    gap: 3px;
-  }
-  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
-  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
-  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
-  @media (max-width: 900px) {
-    .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 560px) {
-    .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
-  }
+/* Fiche agrandie */
+.lb { position: fixed; inset: 0; z-index: 50; background: rgba(8,7,6,.96); display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); }
+.lb .img { display: grid; place-items: center; padding: 24px; min-height: 0; }
+.lb .img img { max-width: 100%; max-height: calc(100vh - 48px); object-fit: contain; }
+.lb .info { padding: calc(28px + env(safe-area-inset-top, 0px)) 28px 28px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.lb h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 3vw, 38px); line-height: 1.1; margin: 0; overflow-wrap: anywhere; }
+.facts { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.facts div { display: flex; justify-content: space-between; gap: 16px; }
+.lb .nav { display: flex; gap: 8px; margin-top: auto; }
+.btn { background: transparent; border: 1px solid var(--line-strong); padding: 9px 13px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.accent { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+@media (max-width: 760px) {
+  .lb { grid-template-columns: 1fr; grid-template-rows: minmax(0, 60vh) auto; overflow-y: auto; }
+  .lb .img img { max-height: 56vh; }
+  .lb .info { border-left: 0; border-top: 1px solid var(--line); }
+}
 
-  .piece {
-    position: relative;
-    aspect-ratio: 3/4;
-    background: #141414;
-    overflow: hidden;
-  }
-  .piece img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .piece .no-image {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-  .piece .caption {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    padding: 14px 12px 10px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.6));
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-  .piece:hover .caption { opacity: 1; }
-  .piece .caption .t {
-    color: #fff;
-    font-size: 12.5px;
-    font-weight: 500;
-    margin: 0;
-    line-height: 1.3;
-  }
-  .piece .caption .c {
-    color: rgba(255,255,255,0.75);
-    font-size: 10.5px;
-    margin: 3px 0 0;
-  }
-
-  #loading, #empty {
-    text-align: center;
-    padding: 80px 20px;
-    color: var(--text-muted);
-    font-size: 14px;
-  }
-  .spinner {
-    width: 24px; height: 24px;
-    border: 2px solid var(--border);
-    border-top-color: #fff;
-    border-radius: 50%;
-    margin: 0 auto 12px;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  footer.vitrine-footer {
-    text-align: center;
-    padding: 24px 20px 40px;
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .hidden { display: none !important; }
+/* Écran propriétaire : choisir un dossier et copier le lien client */
+.owner { max-width: 640px; display: grid; gap: 18px; }
+.owner .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.owner select, .owner input { background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); padding: 8px 0; font-family: var(--serif); font-size: 18px; min-width: 0; flex: 1 1 220px; }
+.owner option { background: var(--void); }
+.owner .link { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; user-select: all; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-
-<div id="setup-screen">
-  <h2>Vitrine client — configuration</h2>
-  <p class="hint">
-    Ces informations restent uniquement dans ton navigateur. Cette page est en lecture seule :
-    aucune modification n'est possible depuis ici.
-  </p>
-  <label for="input-api-url">URL de l'API (Apps Script)</label>
-  <input id="input-api-url" type="text" placeholder="https://script.google.com/macros/s/AKfycb.../exec" value="https://script.google.com/macros/s/AKfycbypp-fgmCsLZAovVvFrhbDCRDBrqie6_o3Fm7MAFTmOVd9dGr7ic7jb_fk1A1K_NoXlOw/exec">
-
-  <label for="input-dossier-id">ID du dossier à afficher</label>
-  <input id="input-dossier-id" type="text" placeholder="ex: d1, mehdi...">
-  <p class="hint">L'identifiant que tu as choisi pour ce dossier dans la feuille "Dossiers" (colonne "id").</p>
-
-  <label for="input-dossier-name">Nom à afficher (optionnel)</label>
-  <input id="input-dossier-name" type="text" placeholder="ex: Sélection pour Mehdi">
-
-  <button class="primary" id="btn-connect">Afficher la vitrine</button>
-</div>
-
-<div id="app" class="hidden">
-  <div class="dev-bar" id="dev-bar">
-    <span>Aperçu (à retirer avant d'envoyer le lien) —</span>
-    <button data-cols="2" class="active">2 colonnes</button>
-    <button data-cols="3">3 colonnes</button>
-    <button data-cols="4">4 colonnes</button>
-  </div>
-
-  <header class="vitrine-header">
-    <p class="kicker">Adn.Bazaar</p>
-    <h1 id="header-title">Sélection</h1>
-    <p class="count" id="header-count"></p>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <span class="mono soft" id="kicker">Sélection · Adrien Pons</span>
+      <h1 id="title">Sélection</h1>
+    </div>
+    <span class="count mono soft" id="count"></span>
   </header>
 
-  <main>
-    <div id="loading">
-      <div class="spinner"></div>
-      Chargement…
+  <section class="owner hidden" id="owner">
+    <p class="soft">Choisis le dossier à montrer. Le lien ci-dessous ouvre directement la vitrine, en lecture seule, sans rien à configurer pour la personne qui le reçoit.</p>
+    <div class="row"><select id="o-folder" aria-label="Dossier"><option value="">Chargement des dossiers…</option></select></div>
+    <div class="row"><input id="o-name" placeholder="Titre affiché (ex. Sélection pour Mehdi)" autocomplete="off" aria-label="Titre affiché"></div>
+    <p class="link" id="o-link"></p>
+    <div class="row">
+      <button class="btn accent" id="o-copy" type="button">Copier le lien</button>
+      <a class="btn" id="o-open" href="#">Ouvrir la vitrine</a>
     </div>
-    <div id="empty" class="hidden">Aucune pièce dans ce dossier pour le moment.</div>
-    <div id="grid" class="grid cols-2 hidden"></div>
-  </main>
+  </section>
 
-  <footer class="vitrine-footer">Lien privé — Adn.Bazaar</footer>
+  <div class="filters hidden" id="filters" aria-label="Filtrer par catégorie"></div>
+  <div class="state" id="state">Chargement de la sélection…</div>
+  <main class="grid" id="grid"></main>
+
+  <footer class="foot mono soft">
+    <span>Adrien Pons · styliste &amp; personal shopper, Paris</span>
+    <a href="https://adrienpons.com">adrienpons.com</a>
+  </footer>
 </div>
 
 <script>
-const params = new URLSearchParams(window.location.search);
-const LS_KEY = 'finds_vitrine_config';
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbypp-fgmCsLZAovVvFrhbDCRDBrqie6_o3Fm7MAFTmOVd9dGr7ic7jb_fk1A1K_NoXlOw/exec';
+const params = new URLSearchParams(location.search);
+// Les anciens liens envoyés contiennent apiUrl : on les accepte toujours.
+const API = params.get('apiUrl') || DEFAULT_API;
+const FOLDER = params.get('dossierId') || '';
+const NAME = params.get('dossierName') || '';
 
-function loadConfig() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { return null; }
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function img(url, size) {
+  const m = String(url || '').match(/[?&]id=([\w-]+)/) || String(url || '').match(/\/d\/([\w-]+)/);
+  if (m && /drive\.google/.test(url)) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w${size}`;
+  return url || '';
 }
-function saveConfig(cfg) {
-  localStorage.setItem(LS_KEY, JSON.stringify(cfg));
-}
-
-let CONFIG = loadConfig();
-
-// Si l'URL contient déjà apiUrl + dossierId (lien direct envoyé à quelqu'un), on saute
-// entièrement l'écran de configuration : on utilise ces paramètres, on les sauvegarde,
-// et on démarre directement l'app.
-const paramApiUrl = params.get('apiUrl');
-const paramDossierId = params.get('dossierId');
-if (paramApiUrl && paramDossierId) {
-  CONFIG = {
-    apiUrl: paramApiUrl,
-    dossierId: paramDossierId,
-    dossierName: params.get('dossierName') || ''
-  };
-  saveConfig(CONFIG);
-}
-
-const setupScreen = document.getElementById('setup-screen');
-const appScreen = document.getElementById('app');
-const gridEl = document.getElementById('grid');
-const loadingEl = document.getElementById('loading');
-const emptyEl = document.getElementById('empty');
-const headerTitle = document.getElementById('header-title');
-const headerCount = document.getElementById('header-count');
-
-async function loadVitrine() {
-  loadingEl.classList.remove('hidden');
-  gridEl.classList.add('hidden');
-  emptyEl.classList.add('hidden');
-
-  try {
-    const qs = new URLSearchParams({ action: 'listPieces', filter: 'dossier', dossierId: CONFIG.dossierId }).toString();
-    const res = await fetch(`${CONFIG.apiUrl}?${qs}`);
-    if (!res.ok) throw new Error(`Erreur API (${res.status})`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    const records = data.records || [];
-
-    loadingEl.classList.add('hidden');
-    headerCount.textContent = `${records.length} pièce${records.length > 1 ? 's' : ''}`;
-
-    if (records.length === 0) {
-      emptyEl.classList.remove('hidden');
-      return;
+async function apiGet(qs) {
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(`${API}?${new URLSearchParams(qs)}`, { credentials: 'omit' });
+      if (!res.ok) throw new Error(res.status);
+      const data = JSON.parse(await res.text());
+      if (data.error) throw new Error(data.error);
+      return data;
+    } catch (e) {
+      if (i === 2) throw e;
+      await new Promise(r => setTimeout(r, 3000 * (i + 1)));
     }
-
-    gridEl.classList.remove('hidden');
-    gridEl.innerHTML = '';
-    records.forEach(r => {
-      const f = r.fields;
-      const imgUrl = f.Images_Link || null;
-      const catLabel = [f.Category, f.Subcategory].filter(Boolean).join(' · ');
-      const div = document.createElement('div');
-      div.className = 'piece';
-      div.innerHTML = `
-        ${imgUrl ? `<img src="${imgUrl}" loading="lazy" alt="${f.Title || ''}">` : `<div class="no-image">Pas d'image</div>`}
-        <div class="caption">
-          <p class="t">${f.Title || f.find_id || ''}</p>
-          ${catLabel ? `<p class="c">${catLabel}</p>` : ''}
-        </div>
-      `;
-      gridEl.appendChild(div);
-    });
-  } catch (e) {
-    loadingEl.classList.add('hidden');
-    alert(`Erreur de chargement : ${e.message}`);
   }
 }
 
-function startApp() {
-  setupScreen.classList.add('hidden');
-  appScreen.classList.remove('hidden');
-  headerTitle.textContent = CONFIG.dossierName || 'Sélection';
-  loadVitrine();
+let pieces = [], view = [], cat = '', open = -1;
+const num = f => String(pieces.indexOf(f) + 1).padStart(2, '0');
+
+function render() {
+  view = cat ? pieces.filter(p => p.Category === cat) : pieces;
+  $('grid').innerHTML = view.map((f, i) => `
+    <button class="piece" type="button" data-i="${i}">
+      <div class="ph">${f.Images_Link ? `<img src="${esc(img(f.Images_Link, 500))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
+      <div class="cap">
+        <span class="no">N° ${num(f)}</span>
+        <span class="t">${esc(f.Title || '')}</span>
+        <span class="b">${esc([f.Brand, f.Size].filter(Boolean).join(' · '))}</span>
+      </div>
+    </button>`).join('');
 }
 
-document.getElementById('btn-connect').addEventListener('click', () => {
-  const apiUrl = document.getElementById('input-api-url').value.trim();
-  const dossierId = document.getElementById('input-dossier-id').value.trim();
-  const dossierName = document.getElementById('input-dossier-name').value.trim();
+function renderFilters() {
+  const cats = [...new Set(pieces.map(p => p.Category).filter(Boolean))];
+  if (cats.length < 2) return;
+  $('filters').innerHTML = `<button class="chip" data-c="" aria-pressed="${!cat}">Tout</button>` +
+    cats.map(c => `<button class="chip" data-c="${esc(c)}" aria-pressed="${cat === c}">${esc(c)}</button>`).join('');
+  $('filters').classList.remove('hidden');
+}
 
-  if (!apiUrl || !dossierId) {
-    alert('Merci de remplir au minimum l\'URL de l\'API et l\'ID du dossier.');
-    return;
-  }
-  CONFIG = { apiUrl, dossierId, dossierName };
-  saveConfig(CONFIG);
-  startApp();
-});
-
-document.querySelectorAll('.dev-bar button[data-cols]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dev-bar button[data-cols]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    gridEl.className = 'grid cols-' + btn.dataset.cols;
+function openLb(i) {
+  closeLb();
+  if (i < 0 || i >= view.length) return;
+  open = i;
+  const f = view[i];
+  const facts = [['Marque', f.Brand], ['Taille', f.Size], ['État', f.Condition], ['Prix sur Vinted', f.Price ? `${f.Price} €` : '']]
+    .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '');
+  const lb = document.createElement('div');
+  lb.className = 'lb';
+  lb.id = 'lb';
+  lb.setAttribute('role', 'dialog');
+  lb.setAttribute('aria-label', f.Title || 'Pièce');
+  lb.innerHTML = `
+    <div class="img">${f.Images_Link ? `<img src="${esc(img(f.Images_Link, 1400))}" alt="${esc(f.Title)}">` : ''}</div>
+    <div class="info">
+      <span class="mono soft">N° ${num(f)} / ${pieces.length}</span>
+      <h2>${esc(f.Title || '')}</h2>
+      ${facts.length ? `<div class="facts">${facts.map(([k, v]) => `<div><span class="mono soft">${k}</span><span>${esc(v)}</span></div>`).join('')}</div>` : ''}
+      ${f.Vinted_Link ? `<a class="btn accent" href="${esc(f.Vinted_Link)}" target="_blank" rel="noopener">Voir l'annonce ↗</a>` : ''}
+      <div class="nav">
+        <button class="btn" data-go="-1" type="button" aria-label="Pièce précédente">←</button>
+        <button class="btn" data-go="1" type="button" aria-label="Pièce suivante">→</button>
+        <button class="btn" data-close type="button">Fermer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(lb);
+  document.body.style.overflow = 'hidden';
+  lb.addEventListener('click', e => {
+    if (e.target.dataset.go) openLb(open + Number(e.target.dataset.go));
+    else if (e.target.dataset.close !== undefined || e.target === lb || e.target.classList.contains('img')) closeLb();
   });
+}
+function closeLb() {
+  $('lb')?.remove();
+  document.body.style.overflow = '';
+  open = -1;
+}
+
+$('grid').addEventListener('click', e => { const p = e.target.closest('.piece'); if (p) openLb(Number(p.dataset.i)); });
+$('filters').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; cat = c.dataset.c; renderFilters(); render(); });
+document.addEventListener('keydown', e => {
+  if (open < 0) return;
+  if (e.key === 'Escape') closeLb();
+  if (e.key === 'ArrowRight') openLb(open + 1);
+  if (e.key === 'ArrowLeft') openLb(open - 1);
 });
 
-if (CONFIG && CONFIG.apiUrl) {
-  document.getElementById('input-api-url').value = CONFIG.apiUrl;
-  document.getElementById('input-dossier-id').value = CONFIG.dossierId || '';
-  document.getElementById('input-dossier-name').value = CONFIG.dossierName || '';
-  startApp();
+async function showSelection() {
+  $('title').textContent = NAME || 'Sélection';
+  document.title = `${NAME || 'Sélection'} · Adrien Pons`;
+  try {
+    const data = await apiGet({ action: 'listPieces', filter: 'dossier', dossierId: FOLDER });
+    // Filtre aussi côté page, au cas où l'API renverrait tout le catalogue.
+    pieces = (data.records || []).map(r => r.fields)
+      .filter(f => String(f.Folders || '').split(',').map(s => s.trim()).includes(FOLDER));
+    $('count').textContent = `${pieces.length} pièce${pieces.length > 1 ? 's' : ''}`;
+    if (!pieces.length) { $('state').textContent = 'Cette sélection est encore vide.'; return; }
+    $('state').classList.add('hidden');
+    renderFilters();
+    render();
+  } catch (e) {
+    $('state').textContent = 'La sélection ne se charge pas pour le moment. Réessaie dans quelques minutes.';
+  }
 }
-</script>
 
+// Sans dossier dans l'adresse : écran pour choisir un dossier et copier le lien à envoyer.
+async function showOwner() {
+  $('kicker').textContent = 'Finds · vitrine client';
+  $('title').textContent = 'Préparer un lien';
+  $('state').classList.add('hidden');
+  $('owner').classList.remove('hidden');
+  const update = () => {
+    const id = $('o-folder').value;
+    const name = $('o-name').value.trim() || $('o-folder').selectedOptions[0]?.dataset.name || '';
+    const url = new URL(location.href.split('?')[0]);
+    if (id) { url.searchParams.set('dossierId', id); if (name) url.searchParams.set('dossierName', name); }
+    $('o-link').textContent = id ? url.toString() : '';
+    $('o-open').href = id ? url.toString() : '#';
+    $('o-copy').disabled = !id;
+  };
+  try {
+    const d = await apiGet({ action: 'listDossiers' });
+    const folders = (d.records || []).map(r => r.fields).sort((a, b) => String(a.Name).localeCompare(String(b.Name)));
+    $('o-folder').innerHTML = '<option value="">Choisir un dossier…</option>' +
+      folders.map(f => `<option value="${esc(f.id)}" data-name="${esc(f.Name)}">${esc(f.Name)}${f.Type ? ' · ' + esc(f.Type) : ''}</option>`).join('');
+  } catch (e) {
+    $('o-folder').innerHTML = '<option value="">Dossiers indisponibles, réessaie plus tard</option>';
+  }
+  $('o-folder').addEventListener('change', update);
+  $('o-name').addEventListener('input', update);
+  $('o-copy').addEventListener('click', async () => {
+    const t = $('o-link').textContent;
+    try { await navigator.clipboard.writeText(t); $('o-copy').textContent = 'Lien copié'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('o-link')); getSelection().removeAllRanges(); getSelection().addRange(r); $('o-copy').textContent = 'Lien sélectionné, copie-le'; }
+    setTimeout(() => { $('o-copy').textContent = 'Copier le lien'; }, 2500);
+  });
+  update();
+}
+
+FOLDER ? showSelection() : showOwner();
+</script>
 </body>
 </html>
