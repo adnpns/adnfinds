@@ -62,6 +62,10 @@ a { color: inherit; }
 .tabs { display: flex; gap: 18px; }
 .tab { background: none; border: 0; padding: 6px 0; border-bottom: 1px solid transparent; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.folder-tabs { display: contents; }
+.tab.folder { color: var(--ink-soft); }
+.tab.folder::before { content: "●"; color: var(--accent); margin-right: 5px; font-size: 8px; vertical-align: 2px; }
+.tabs { flex-wrap: wrap; row-gap: 4px; }
 .tab b { font-weight: 400; color: var(--star, var(--ink-soft)); margin-left: 4px; }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .filters select { background: var(--void); border: 1px solid var(--line); padding: 6px 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .04em; max-width: 190px; }
@@ -184,6 +188,7 @@ body.bulk-open .toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
       <button class="tab" role="tab" data-tab="all" aria-selected="true">Tout<b id="n-all"></b></button>
       <button class="tab" role="tab" data-tab="nofolder" aria-selected="false">Sans dossier<b id="n-nofolder"></b></button>
       <button class="tab" role="tab" data-tab="nocat" aria-selected="false">À classer<b id="n-nocat"></b></button>
+      <span id="folder-tabs" class="folder-tabs"></span>
     </div>
     <div class="filters">
       <select id="f-folder" aria-label="Dossier"></select>
@@ -318,7 +323,7 @@ const S = {
   pieces: [],          // { row, f } ; row = numéro de ligne dans le Sheet
   folders: [],         // { id, name, type }
   hasEra: false, hasUniverse: false,
-  tab: prefs.tab || 'all', q: '', cat: '', sub: '', folder: '', account: '', era: '', universe: '',
+  tab: prefs.tab || 'all', q: '', cat: '', sub: '', folder: prefs.folder || '', account: '', era: '', universe: '',
   view: [], shown: 0,
   selecting: false, selected: new Set(),
   open: -1,            // index dans S.view de la fiche ouverte
@@ -528,7 +533,10 @@ function renderCounts() {
   $('n-all').textContent = all;
   $('n-nofolder').textContent = S.pieces.filter(p => !folderIds(p.f).length).length;
   $('n-nocat').textContent = S.pieces.filter(p => !isCategorized(p.f)).length;
-  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === S.tab)));
+  // Dossiers en onglets : un geste pour ouvrir A+P, Vestiaire… (cumulable avec Tout / Sans dossier / À classer)
+  $('folder-tabs').innerHTML = S.folders.map(d =>
+    `<button class="tab folder" data-folder-tab="${esc(d.id)}" aria-selected="${S.folder === d.id}">${esc(d.name)}<b>${S.pieces.filter(p => folderIds(p.f).includes(d.id)).length}</b></button>`).join('');
+  document.querySelectorAll('.tab[data-tab]').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === S.tab && !S.folder)));
 }
 
 // ---------- Grille ----------
@@ -866,7 +874,15 @@ let qTimer;
 $('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = $('q').value; renderChips(); renderGrid(); }, 160); });
 document.querySelector('.tabs').addEventListener('click', e => {
   const t = e.target.closest('.tab'); if (!t) return;
-  S.tab = t.dataset.tab; prefs.tab = S.tab; savePrefs();
+  if (t.dataset.folderTab) {
+    S.folder = S.folder === t.dataset.folderTab ? '' : t.dataset.folderTab;
+    S.tab = 'all';
+  } else {
+    S.tab = t.dataset.tab;
+    S.folder = '';
+  }
+  prefs.tab = S.tab; prefs.folder = S.folder; savePrefs();
+  renderSelects();
   renderCounts(); renderChips(); renderGrid();
 });
 $('chips-cat').addEventListener('click', e => {
@@ -880,7 +896,11 @@ $('chips-sub').addEventListener('click', e => {
   renderChips(); renderGrid();
 });
 [['f-folder', 'folder'], ['f-account', 'account'], ['f-era', 'era'], ['f-universe', 'universe']].forEach(([id, key]) => {
-  $(id).addEventListener('change', () => { S[key] = $(id).value; $(id).classList.toggle('on', !!S[key]); renderChips(); renderGrid(); });
+  $(id).addEventListener('change', () => {
+    S[key] = $(id).value; $(id).classList.toggle('on', !!S[key]);
+    if (key === 'folder') { prefs.folder = S.folder; savePrefs(); renderCounts(); }
+    renderChips(); renderGrid();
+  });
 });
 $('btn-refresh').addEventListener('click', refresh);
 $('btn-select').addEventListener('click', () => setSelecting(!S.selecting));
