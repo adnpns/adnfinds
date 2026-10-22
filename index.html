@@ -191,6 +191,14 @@ body.bulk-open .toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
       <span id="folder-tabs" class="folder-tabs"></span>
     </div>
     <div class="filters">
+      <select id="f-sort" aria-label="Trier">
+        <option value="new">Trier : récents</option>
+        <option value="old">Trier : anciens</option>
+        <option value="price-asc">Prix croissant</option>
+        <option value="price-desc">Prix décroissant</option>
+        <option value="likes">Plus aimés</option>
+        <option value="brand">Marque A → Z</option>
+      </select>
       <select id="f-folder" aria-label="Dossier"></select>
       <select id="f-account" aria-label="Compte Vinted"></select>
       <select id="f-era" aria-label="Époque" class="hidden"></select>
@@ -323,6 +331,7 @@ const S = {
   pieces: [],          // { row, f } ; row = numéro de ligne dans le Sheet
   folders: [],         // { id, name, type }
   hasEra: false, hasUniverse: false,
+  sort: prefs.sort || 'new',
   tab: prefs.tab || 'all', q: '', cat: '', sub: '', folder: prefs.folder || '', account: '', era: '', universe: '',
   view: [], shown: 0,
   selecting: false, selected: new Set(),
@@ -560,9 +569,32 @@ function cardHtml(p, i) {
     <div class="meta">
       <span class="b">${esc(f.Brand || '—')}</span>
       <span class="t">${esc(f.Title || f.find_id)}</span>
-      <span class="p${pt.todo ? ' todo' : ''}">${esc(pt.t)}</span>
+      <span class="p${pt.todo ? ' todo' : ''}">${f.Price ? esc(f.Price) + ' € · ' : ''}${esc(pt.t)}</span>
     </div>
   </button>`;
+}
+
+// Tri : les pièces sans prix (ou sans j'aime, sans marque) passent toujours à la fin.
+const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? null : n; };
+// Prix au-delà de 10 000 € = erreur de lecture d'un ancien import : ignoré pour le tri.
+const priceOf = p => { const n = num(p.f.Price); return n !== null && n > 0 && n < 10000 ? n : null; };
+function sortList(list) {
+  const by = (get, dir) => (a, b) => {
+    const x = get(a), y = get(b);
+    if (x === null && y === null) return b.row - a.row;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir || b.row - a.row;
+  };
+  const out = [...list];
+  switch (S.sort) {
+    case 'old': return out.sort((a, b) => a.row - b.row);
+    case 'price-asc': return out.sort(by(priceOf, 1));
+    case 'price-desc': return out.sort(by(priceOf, -1));
+    case 'likes': return out.sort(by(p => num(p.f.Likes), -1));
+    case 'brand': return out.sort(by(p => String(p.f.Brand || '').trim().toLowerCase() || null, 1));
+    default: return out.sort((a, b) => b.row - a.row);
+  }
 }
 
 let moreObserver;
@@ -570,7 +602,7 @@ function renderGrid() {
   let list = baseFiltered();
   if (S.cat === '__none') list = baseFiltered('cat').filter(p => !p.f.Category);
   if (S.sub === '__none') list = list.filter(p => !p.f.Subcategory);
-  S.view = list;
+  S.view = sortList(list);
   S.shown = 0;
   $('grid').innerHTML = '';
   $('loading').classList.add('hidden');
@@ -902,6 +934,9 @@ $('chips-sub').addEventListener('click', e => {
     renderChips(); renderGrid();
   });
 });
+$('f-sort').value = S.sort;
+$('f-sort').addEventListener('change', () => { S.sort = $('f-sort').value; prefs.sort = S.sort; savePrefs(); $('f-sort').classList.toggle('on', S.sort !== 'new'); renderGrid(); });
+$('f-sort').classList.toggle('on', S.sort !== 'new');
 $('btn-refresh').addEventListener('click', refresh);
 $('btn-select').addEventListener('click', () => setSelecting(!S.selecting));
 $('btn-density').addEventListener('click', () => {
