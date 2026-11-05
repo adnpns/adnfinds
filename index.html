@@ -641,6 +641,15 @@ function renderAll() {
   renderSelects();
   renderChips();
   renderGrid();
+  openWanted();
+}
+
+// Lien direct vers une pièce (?find=find_00123), par exemple depuis le Suivi ADN.
+const WANTED = new URLSearchParams(location.search).get('find');
+function openWanted() {
+  if (!WANTED || openWanted.done || !S.pieces.length) return;
+  const i = S.view.findIndex(x => x.f.find_id === WANTED);
+  if (i >= 0) { openWanted.done = true; openSheet(i); }
 }
 
 // ---------- Écritures ----------
