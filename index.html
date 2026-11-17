@@ -92,6 +92,12 @@ main { padding: 18px var(--gutter) 120px; }
 body.selecting .tick { display: grid; }
 .card.sel .tick { background: var(--accent); border-color: var(--accent); color: var(--void); }
 .card.sel .ph { outline: 2px solid var(--accent); outline-offset: -2px; }
+.badge { position: absolute; left: 8px; bottom: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; background: var(--void); color: var(--ink); border: 1px solid var(--line-strong); }
+.badge.sold { background: var(--ink); color: var(--void); }
+.card.is-sold img { filter: grayscale(1); opacity: .6; }
+.triage { display: flex; flex-wrap: wrap; gap: 8px; }
+.triage .btn { flex: 1 1 140px; padding: 12px; }
+.triage .btn kbd { font-family: var(--mono); font-size: 10px; opacity: .6; margin-left: 6px; }
 .dots { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px var(--void); }
 .meta { display: grid; gap: 2px; min-width: 0; }
@@ -179,6 +185,7 @@ body.bulk-open .toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
     <div class="tools">
       <span class="status" id="status">—</span>
       <button class="btn" id="btn-refresh" title="Recharger depuis le Sheet">Actualiser</button>
+      <button class="btn" id="btn-triage" title="Trier les nouveaux favoris un par un">Trier</button>
       <button class="btn" id="btn-select" aria-pressed="false">Sélection</button>
       <button class="btn" id="btn-density" title="Taille des vignettes">Vignettes M</button>
     </div>
@@ -187,7 +194,10 @@ body.bulk-open .toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="all" aria-selected="true">Tout<b id="n-all"></b></button>
       <button class="tab" role="tab" data-tab="nofolder" aria-selected="false">Sans dossier<b id="n-nofolder"></b></button>
+      <button class="tab" role="tab" data-tab="todo" aria-selected="false">À trier<b id="n-todo"></b></button>
       <button class="tab" role="tab" data-tab="nocat" aria-selected="false">À classer<b id="n-nocat"></b></button>
+      <button class="tab" role="tab" data-tab="sold" aria-selected="false">Vendues<b id="n-sold"></b></button>
+      <button class="tab" role="tab" data-tab="out" aria-selected="false">Écartées<b id="n-out"></b></button>
       <span id="folder-tabs" class="folder-tabs"></span>
     </div>
     <div class="filters">
@@ -297,6 +307,7 @@ const CATEGORIE_MAP = {
   },
   'Home': {
     'Furniture': [],
+    'Rugs': [],
     'Décoration': [],
     'Textile': [],
     'Games': [],
@@ -320,6 +331,37 @@ const subsubsOf = (c, s) => (CATEGORIE_MAP[c] || {})[s] || [];
 function isCategorized(f) {
   if (!f.Category || !f.Subcategory) return false;
   return !(subsubsOf(f.Category, f.Subcategory).length && !f['Sub-Subcategory']);
+}
+
+// Statut (colonne Status) : '' = triée, 'À trier' = nouveau favori, 'Vendu' = vendu sur Vinted
+// (masqué), 'Gardée' = vendue mais gardée pour l'image (visible), 'Écartée' = pas pour moi (masquée).
+const stat = f => { const v = norm(f.Status).trim(); return v === 'a trier' ? 'todo' : v === 'vendu' ? 'sold' : v === 'gardee' ? 'kept' : v === 'ecartee' ? 'out' : ''; };
+const HIDDEN_TABS = { sold: 'sold', out: 'out' };
+
+// Recherche multilingue : Vinted mélange FR / EN / IT / ES / NL / DE.
+const SYN = [
+  ['tapis', 'rug', 'rugs', 'kilim', 'tappeto', 'tappeti', 'alfombra', 'tapijt', 'teppich', 'carpet', 'beni ouarain'],
+  ['veste', 'jacket', 'giacca', 'chaqueta', 'jas', 'jacke', 'blouson'],
+  ['pull', 'sweater', 'maglione', 'jersey', 'trui', 'pullover', 'maglia'],
+  ['chemise', 'shirt', 'camicia', 'camisa', 'overhemd', 'hemd'],
+  ['cuir', 'leather', 'pelle', 'cuero', 'leer', 'leder'],
+  ['laine', 'wool', 'lana', 'wol', 'wolle'],
+  ['sac', 'bag', 'borsa', 'bolso', 'tas', 'tasche'],
+  ['manteau', 'coat', 'cappotto', 'abrigo', 'jas', 'mantel'],
+  ['lampe', 'lamp', 'lampada', 'lampara', 'lamp'],
+  ['chaise', 'chair', 'sedia', 'silla', 'stoel', 'stuhl'],
+];
+// Le mot tapé : n'importe où (« veste » trouve « vestes ») ; ses traductions : en début de mot
+// seulement (sinon « rug » trouverait « drugstore »).
+const matcherCache = new Map();
+function wordMatcher(w) {
+  if (!matcherCache.has(w)) {
+    const g = SYN.find(g => g.includes(w)) || [];
+    const others = g.filter(x => x !== w).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const re = others.length ? new RegExp(`(^|[^a-z0-9])(${others.join('|')})`) : null;
+    matcherCache.set(w, hay => hay.includes(w) || (re ? re.test(hay) : false));
+  }
+  return matcherCache.get(w);
 }
 
 // ---------- État ----------
@@ -466,6 +508,9 @@ function baseFiltered(skip) {
   const words = q ? q.split(/\s+/) : [];
   return S.pieces.filter(p => {
     const f = p.f;
+    const st = stat(f);
+    if (HIDDEN_TABS[S.tab] ? st !== HIDDEN_TABS[S.tab] : (st === 'sold' || st === 'out')) return false;
+    if (S.tab === 'todo' && st !== 'todo') return false;
     if (S.tab === 'nofolder' && folderIds(f).length) return false;
     if (S.tab === 'nocat' && isCategorized(f)) return false;
     if (S.folder && !folderIds(f).includes(S.folder)) return false;
@@ -476,7 +521,7 @@ function baseFiltered(skip) {
     if (skip !== 'cat' && skip !== 'sub' && S.sub && f.Subcategory !== S.sub) return false;
     if (words.length) {
       const hay = norm(`${f.Title} ${f.Brand} ${f.Category} ${f.Subcategory} ${f['Sub-Subcategory']} ${f.Size} ${f.Universe || ''} ${f.Era || ''}`);
-      if (!words.every(w => hay.includes(w))) return false;
+      if (!words.every(w => wordMatcher(w)(hay))) return false;
     }
     return true;
   });
@@ -540,8 +585,14 @@ function renderCounts() {
   const all = S.pieces.length;
   $('total').textContent = `${all.toLocaleString('fr-FR')} pièces`;
   $('n-all').textContent = all;
-  $('n-nofolder').textContent = S.pieces.filter(p => !folderIds(p.f).length).length;
-  $('n-nocat').textContent = S.pieces.filter(p => !isCategorized(p.f)).length;
+  $('n-nofolder').textContent = S.pieces.filter(p => !folderIds(p.f).length && !['sold', 'out'].includes(stat(p.f))).length;
+  const visible = S.pieces.filter(p => !['sold', 'out'].includes(stat(p.f)));
+  $('n-all').textContent = visible.length;
+  $('n-nocat').textContent = visible.filter(p => !isCategorized(p.f)).length;
+  $('n-todo').textContent = S.pieces.filter(p => stat(p.f) === 'todo').length;
+  $('n-sold').textContent = S.pieces.filter(p => stat(p.f) === 'sold').length;
+  $('n-out').textContent = S.pieces.filter(p => stat(p.f) === 'out').length;
+  $('btn-triage').textContent = `Trier${$('n-todo').textContent !== '0' ? ' · ' + $('n-todo').textContent : ''}`;
   // Dossiers en onglets : un geste pour ouvrir A+P, Vestiaire… (cumulable avec Tout / Sans dossier / À classer)
   $('folder-tabs').innerHTML = S.folders.map(d =>
     `<button class="tab folder" data-folder-tab="${esc(d.id)}" aria-selected="${S.folder === d.id}">${esc(d.name)}<b>${S.pieces.filter(p => folderIds(p.f).includes(d.id)).length}</b></button>`).join('');
@@ -559,11 +610,14 @@ function cardHtml(p, i) {
   const f = p.f;
   const pt = pathText(f);
   const folders = folderIds(f);
-  return `<button class="card${S.selected.has(p.f.find_id) ? ' sel' : ''}" data-i="${i}" type="button">
+  const st = stat(f);
+  const badge = { todo: '<span class="badge">À trier</span>', sold: '<span class="badge sold">Vendue</span>', kept: '<span class="badge sold">Vendue · gardée</span>', out: '<span class="badge">Écartée</span>' }[st] || '';
+  return `<button class="card${S.selected.has(p.f.find_id) ? ' sel' : ''}${st === 'sold' || st === 'kept' ? ' is-sold' : ''}" data-i="${i}" type="button">
     <div class="ph">
       ${f.Images_Link ? `<img src="${esc(img(f.Images_Link, 400))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
       <span class="noimg mono soft">${f.Images_Link ? '' : 'sans photo'}</span>
       <span class="tick">${S.selected.has(p.f.find_id) ? '✓' : ''}</span>
+      ${badge}
       ${folders.length ? `<span class="dots" title="${folders.length} dossier(s)">${folders.map(() => '<i></i>').join('')}</span>` : ''}
     </div>
     <div class="meta">
@@ -721,6 +775,10 @@ function renderSheet() {
       ${factsHtml(f) ? `<div class="facts">${factsHtml(f)}</div>` : ''}
     </div>
     <div class="sect">
+      <div class="label"><span>Statut</span><span>${esc(f.Status || 'triée')}</span></div>
+      <div class="triage">${statusButtons(f)}</div>
+    </div>
+    <div class="sect">
       <div class="label"><span>Catégorie</span><span>${isCategorized(f) ? 'classée' : 'à compléter'}</span></div>
       <div class="pick" data-level="0">${CATS.map(c => `<button class="chip" data-v="${esc(c)}" aria-pressed="${f.Category === c}">${esc(c)}</button>`).join('')}</div>
       ${subs.length ? `<div class="pick" data-level="1">${subs.map(s => `<button class="chip" data-v="${esc(s)}" aria-pressed="${f.Subcategory === s}">${esc(s)}</button>`).join('')}</div>` : ''}
@@ -736,9 +794,38 @@ function renderSheet() {
     </div>`;
 }
 
+function statusButtons(f) {
+  const st = stat(f);
+  const b = (v, label, key, cls = '') => `<button class="btn ${cls}" data-status="${esc(v)}">${label}${key ? `<kbd>${key}</kbd>` : ''}</button>`;
+  if (st === 'sold') return b('Gardée', 'Garder pour l\'image', 'G', 'solid');
+  if (st === 'kept') return b('Vendu', 'Ne plus garder', '');
+  if (st === 'out') return b('', 'Remettre dans Finds', '');
+  return (st === 'todo' ? b('', 'Garder', 'Entrée', 'solid') : '') + b('Écartée', 'Écarter', 'X');
+}
+
+// Change le statut ; dans les onglets À trier / Vendues / Écartées la pièce quitte la liste :
+// on passe directement à la suivante (tri à la chaîne).
+async function setStatusOf(p, value) {
+  const leaves = S.tab === 'todo' || HIDDEN_TABS[S.tab] || value === 'Écartée' || value === 'Vendu';
+  const ok = await patch(p, { Status: value });
+  if (!ok) return;
+  toast({ '': 'Gardée', 'Écartée': 'Écartée', 'Gardée': 'Gardée pour l\'image', 'Vendu': 'Masquée' }[value] || 'OK');
+  if (leaves) {
+    const idx = S.open;
+    S.view.splice(idx, 1);
+    document.querySelector(`.card[data-i="${idx}"]`)?.remove();
+    document.querySelectorAll('.card').forEach(c => { const n = Number(c.dataset.i); if (n > idx) c.dataset.i = n - 1; });
+    S.shown = Math.max(0, S.shown - 1);
+    renderCounts(); renderChips();
+    if (S.view.length) openSheet(Math.min(idx, S.view.length - 1)); else { closeSheet(); toast('Tout est trié ✓'); }
+  } else { renderSheet(); rerenderCard(S.open); renderCounts(); }
+}
+
 async function onSheetClick(e) {
   const p = S.view[S.open];
   if (!p) return;
+  const sb = e.target.closest('[data-status]');
+  if (sb) { sb.disabled = true; await setStatusOf(p, sb.dataset.status); return; }
   const chip = e.target.closest('.pick .chip');
   if (chip && chip.closest('[data-level]')) {
     const level = Number(chip.closest('[data-level]').dataset.level);
@@ -908,6 +995,10 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeSheet();
     if (e.key === 'ArrowRight') openSheet(S.open + 1);
     if (e.key === 'ArrowLeft') openSheet(S.open - 1);
+    const p = S.view[S.open], st = p && stat(p.f);
+    if (p && e.key === 'Enter' && st === 'todo') { e.preventDefault(); setStatusOf(p, ''); }
+    if (p && (e.key === 'x' || e.key === 'X') && st !== 'out') setStatusOf(p, 'Écartée');
+    if (p && (e.key === 'g' || e.key === 'G') && st === 'sold') setStatusOf(p, 'Gardée');
   } else if (e.key === '/') { e.preventDefault(); $('q').focus(); }
 });
 
@@ -948,6 +1039,12 @@ $('f-sort').addEventListener('change', () => { S.sort = $('f-sort').value; prefs
 $('f-sort').classList.toggle('on', S.sort !== 'new');
 $('btn-refresh').addEventListener('click', refresh);
 $('btn-select').addEventListener('click', () => setSelecting(!S.selecting));
+$('btn-triage').addEventListener('click', () => {
+  S.tab = 'todo'; S.folder = ''; S.cat = ''; S.sub = '';
+  prefs.tab = S.tab; prefs.folder = ''; savePrefs();
+  renderAll();
+  if (S.view.length) openSheet(0); else toast('Rien à trier : les nouveaux favoris arrivent ici tout seuls.');
+});
 $('btn-density').addEventListener('click', () => {
   prefs.density = DENS[(DENS.indexOf(prefs.density || 'm') + 1) % 3]; savePrefs(); applyDensity();
 });
